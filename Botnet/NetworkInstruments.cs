@@ -13,12 +13,6 @@ namespace Botnet
 {
     public static class NetworkInstruments
     {
-        public static IPAddress getExternalIP()
-        {
-            IPHostEntry IPHost = Dns.GetHostEntry(Dns.GetHostName());
-            //fix it later
-            return getLocaIP();
-        }
         public static IPAddress getLocaIP()
         {
             IPHostEntry Entry = Dns.GetHostEntry(Dns.GetHostName());
@@ -29,23 +23,40 @@ namespace Botnet
                     return ip;
                 }
             }
-            throw new Exception();
+            throw new Exception(); //Internetworkipnotfound
 
         }
-        public static PhysicalAddress GetMacAddress()
+        public static PhysicalAddress GetMacAddress()  //of interface with specified ip
         {
             var myInterfaceAddress = NetworkInterface.GetAllNetworkInterfaces()
             .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
             .OrderByDescending(n => n.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
             .Select(n => n.GetPhysicalAddress())
             .FirstOrDefault();
-
             return myInterfaceAddress;
+        }
+        public static IPAddress getAdapterIPAddress(NetworkInterface Adapter)
+        {
+            UnicastIPAddressInformationCollection AddressList = Adapter.GetIPProperties().UnicastAddresses;
+            foreach (UnicastIPAddressInformation info in AddressList)
+            {
+                if (info.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    return info.Address;
+                }
+            }
+            return IPAddress.Any;
+        }
+        public static NetworkInterface getAnyAdaptor()
+        {
+            return NetworkInterface.GetAllNetworkInterfaces()
+            .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .OrderByDescending(n => n.NetworkInterfaceType == NetworkInterfaceType.Ethernet).First();
         }
         public static PhysicalAddress ResolveMac(LibPcapLiveDevice device, IPAddress Instance)
         {
             ARP Resolver = new ARP(device);
-            Resolver.Timeout = new TimeSpan(0,0,3);
+            Resolver.Timeout = new TimeSpan(0, 0, 3);
             return Resolver.Resolve(Instance, getLocaIP(), GetMacAddress());
         }
         public static PhysicalAddress GetRandomMac(ref Random Randomizer)
@@ -54,10 +65,9 @@ namespace Botnet
             Randomizer.NextBytes(add);
             return new PhysicalAddress(add);
         }
-        public static ICaptureDevice getActiveDevice()
+        public static ICaptureDevice getActiveDevice(PhysicalAddress MyActiveIntAddress)
         {
             CaptureDeviceList Devices = CaptureDeviceList.Instance;
-            PhysicalAddress MyActiveIntAddress = NetworkInstruments.GetMacAddress();
             for (int i = 0; i < Devices.Count; ++i)
             {
                 Devices[i].Open();

