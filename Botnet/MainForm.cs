@@ -17,7 +17,7 @@ namespace Botnet
         private NetworkController Controller;
         private Timer StatisticTimer;
         private delegate void ReceiveMessageCallBack(string data);
-        private delegate void LabelChangeCallBack(Label target, int data);
+        private delegate void LabelChangeCallBack(Label target, uint data);
         public MainForm()
         {
             InitializeComponent();
@@ -155,7 +155,7 @@ namespace Botnet
             else
             {
                 LogBox.AppendText(DateTime.Now.ToString("HH:mm:ss.ffff") + ": " + Message + Environment.NewLine);
-                LogBox.SelectionStart = LogBox.TextLength;
+                LogBox.SelectionStart = LogBox.TextLength; //obj disposed
                 LogBox.ScrollToCaret();
             }
         }
@@ -227,7 +227,7 @@ namespace Botnet
             UpdateData("Ошибка " + message);
             BananaGuy.setState((int)MascotController.states.pause);
         }
-        private void StatisticRespond(int http, int udp, int totalhttp, int totaludp)
+        private void StatisticRespond(UInt32 http, UInt32 udp, UInt32 totalhttp, UInt32 totaludp)
         {
             if (Controller.mode)
             {
@@ -235,14 +235,18 @@ namespace Botnet
                 {
                     LabelChangeCallBack SetLabel = new LabelChangeCallBack(setLabel);
                     this.Invoke(SetLabel, new Object[] { MHttpLocLab, http });
-                    this.Invoke(SetLabel, new Object[] { MUpdLocLab, http });
-                    this.Invoke(SetLabel, new Object[] { MHttpTotLab, http });
-                    this.Invoke(SetLabel, new Object[] { MUdpTotalLab, http });
-                    //MHttpLocLab.Text = http.ToString();
-                    //MUpdLocLab.Text = udp.ToString();
-                    //MHttpTotLab.Text = totalhttp.ToString();
-                    //MUdpTotalLab.Text = totaludp.ToString();
+                    this.Invoke(SetLabel, new Object[] { MUpdLocLab, udp });
+                    this.Invoke(SetLabel, new Object[] { MHttpTotLab, totalhttp });
+                    this.Invoke(SetLabel, new Object[] { MUdpTotalLab, totaludp });
+                    
                     //RefreshHostList(DeviceObserveGrid); 
+                }
+                else
+                {
+                    setLabel(MHttpLocLab, http);
+                    setLabel(MUpdLocLab, udp);
+                    setLabel(MHttpTotLab, totalhttp);
+                    setLabel(MUdpTotalLab, totaludp);
                 }
             }
             else
@@ -251,7 +255,7 @@ namespace Botnet
                 HUdpTotalLab.Text = udp.ToString();
             }
         }
-        private void setLabel(Label Target, int data)
+        private void setLabel(Label Target, uint data)
         {
             Target.Text = data.ToString();
         }
@@ -268,12 +272,13 @@ namespace Botnet
         private void button1_Click(object sender, EventArgs e)
         {
             UpdateData("Попытка подключения к мастеру");
-            Controller.InitInterface(Controller.Adapter, Controller.CurrentPort, Controller.MasterIpEndPont);
-            if (Controller.mode)
-            {
-                ChangeMode(true);
-            }
-            else ChangeMode(false);
+            //Controller.InitInterface(Controller.Adapter, Controller.CurrentPort, Controller.MasterIpEndPont);
+            Controller.ConnectToMaster();
+            //if (Controller.mode)
+            //{
+            //    ChangeMode(true);
+            //}
+            //else ChangeMode(false);
 
         }
         private void getStats(object sender, EventArgs e)

