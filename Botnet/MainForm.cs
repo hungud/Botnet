@@ -40,7 +40,7 @@ namespace Botnet
         {
             try
             {   //change lostconn handler to error handler
-                Controller = new NetworkController(new AttackParams(), NetworkInstruments.getAnyAdaptor(), UpdateData, StatisticRespond, ChangeMode, ErrorHandler, 27000, null);
+                Controller = new NetworkController(new AttackParams(), NetworkInstruments.getAnyAdaptor(), UpdateData, StatisticRespond, ErrorHandler, 27000, null);
                 ControlTab.Enabled = true;
                 System.Threading.Thread.Sleep(400);
                 if (Controller.mode)
@@ -80,9 +80,8 @@ namespace Botnet
             {
                 BananaGuy.setState((int)MascotController.states.attacking);
                 Controller.Start();
- //what will happen when user push once more?
             }
-            else { MessageBox.Show("Отсутвует подключение к сети, проверьте подкллючение и переподключитесь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Information); }
+            //else { MessageBox.Show("Отсутвует подключение к сети, проверьте подкллючение и переподключитесь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Information); }
         }
 
         private void StopBtn_Click(object sender, EventArgs e)
@@ -93,7 +92,7 @@ namespace Botnet
                 Controller.Stop();
 
             }
-            else { MessageBox.Show("Отсутвует подключение к сети, проверьте подкллючение и переподключитесь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Information); }
+            //else { MessageBox.Show("Отсутвует подключение к сети, проверьте подкллючение и переподключитесь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Information); }
         }
 
         private void refreshAliesBtn_Click(object sender, EventArgs e)
@@ -113,26 +112,15 @@ namespace Botnet
                 string[] info = list[i].Split(' ');
                 Target.Rows[i].Cells[0].Value = info[0];
                 Target.Rows[i].Cells[1].Value = info[1];
-                //switch ((NetworkController.ControllerState)Convert.ToByte(info[3]))
-                //{
-                //    case NetworkController.ControllerState.Attacking: Target.Rows[i].Cells[1].Value = "Attacking"; break;  //check do these codes properly installed 
-                //    case NetworkController.ControllerState.Error: Target.Rows[i].Cells[1].Value = "Error"; break;
-                //    case NetworkController.ControllerState.Master: Target.Rows[i].Cells[1].Value = "Master"; break;
-                //    case NetworkController.ControllerState.Suspending: Target.Rows[i].Cells[1].Value = "Suspending"; break;
-                //    case NetworkController.ControllerState.Tuning: Target.Rows[i].Cells[1].Value = "Tuning"; break;
-                //}
             }
         }
 
         private void ParamsBtn_Click(object sender, EventArgs e)
         {
             BananaGuy.setState((int)MascotController.states.preparing);
-            //open config window
-            //specify restricted address pool
             SettingsForm Sets = new SettingsForm(Controller.Params, Controller.Adapter, Controller.CurrentPort, SetSettings, Controller.mode, Controller.mode ? null : Controller.MasterIpEndPont);
             Sets.Show();
         }
-
         private void ClearLogBtn_Click(object sender, EventArgs e)
         {
             LogBox.Text = "";
@@ -154,9 +142,16 @@ namespace Botnet
             }
             else
             {
-                LogBox.AppendText(DateTime.Now.ToString("HH:mm:ss.ffff") + ": " + Message + Environment.NewLine);
-                LogBox.SelectionStart = LogBox.TextLength; //obj disposed
-                LogBox.ScrollToCaret();
+                try
+                {
+                    LogBox.AppendText(DateTime.Now.ToString("HH:mm:ss.ffff") + ": " + Message + Environment.NewLine);
+                    LogBox.SelectionStart = LogBox.TextLength;
+                    LogBox.ScrollToCaret();
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
             }
         }
         private void ChangeMode(bool mode)
@@ -196,13 +191,8 @@ namespace Botnet
             {
                 if (Controller.mode) // and now master mode
                 {
-                    //MIpEndPointlab.Text = Controller.LocalIpEndPoint.ToString();
                     e.Cancel = false; //do not cancel tab changing
                     return;
-                }
-                else
-                {
-                    //print: only master can assign new master  //
                 }
             }
             e.Cancel = true;
@@ -210,9 +200,8 @@ namespace Botnet
         }
         private void SetSettings(AttackParams Params, System.Net.NetworkInformation.NetworkInterface Adapter, int altport, IPEndPoint NewMasterPoint)
         {
-            //Controller.Close();
             LogBox.Text = "";
-            Controller.InitInterface(Adapter, altport, NewMasterPoint);  //catch occupied port exception
+            Controller.InitInterface(Adapter, altport, NewMasterPoint);
             Controller.InitParams(Params);
             if (Controller.mode)
             {
@@ -238,8 +227,6 @@ namespace Botnet
                     this.Invoke(SetLabel, new Object[] { MUpdLocLab, udp });
                     this.Invoke(SetLabel, new Object[] { MHttpTotLab, totalhttp });
                     this.Invoke(SetLabel, new Object[] { MUdpTotalLab, totaludp });
-                    
-                    //RefreshHostList(DeviceObserveGrid); 
                 }
                 else
                 {
@@ -272,13 +259,7 @@ namespace Botnet
         private void button1_Click(object sender, EventArgs e)
         {
             UpdateData("Попытка подключения к мастеру");
-            //Controller.InitInterface(Controller.Adapter, Controller.CurrentPort, Controller.MasterIpEndPont);
             Controller.ConnectToMaster();
-            //if (Controller.mode)
-            //{
-            //    ChangeMode(true);
-            //}
-            //else ChangeMode(false);
 
         }
         private void getStats(object sender, EventArgs e)
@@ -287,7 +268,6 @@ namespace Botnet
             {
                 Controller.Statistic();
             }
-
         }
     }
 }

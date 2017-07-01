@@ -19,7 +19,7 @@ namespace Botnet
         public delegate void SetSettingsCallBack(AttackParams Params, NetworkInterface Adapter, int port, IPEndPoint MasterAddr);
         SetSettingsCallBack SetSettings;
 
-        public SettingsForm(AttackParams Params, NetworkInterface CurAdapter, int curport, SetSettingsCallBack funct, bool mode, IPEndPoint OldMaster)//if true init new ex, otherwise
+        public SettingsForm(AttackParams Params, NetworkInterface CurAdapter, int curport, SetSettingsCallBack funct, bool mode, IPEndPoint OldMaster)
         {
             InitializeComponent(); //fill previous params to form if obkect is initialized
             SetSettings = funct;
@@ -132,7 +132,7 @@ namespace Botnet
         private void fillAdapterList()
         {
             Adapters = NetworkInterface.GetAllNetworkInterfaces();
-
+            //choose only valid adapters
             for (int i = 0; i < Adapters.Length; ++i)
             {
                 AdapterBox.Items.Add(Adapters[i].Name + " Status: " + Adapters[i].OperationalStatus.ToString() + " Type: " + Adapters[i].NetworkInterfaceType);
