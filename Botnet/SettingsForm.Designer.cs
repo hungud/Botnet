@@ -36,8 +36,6 @@
             this.RestStartBox = new System.Windows.Forms.TextBox();
             this.RestEndBox = new System.Windows.Forms.TextBox();
             this.FloodEnablingCheckBox = new System.Windows.Forms.CheckBox();
-            this.TargetPortNum = new System.Windows.Forms.NumericUpDown();
-            this.label5 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.HttpContentBox = new System.Windows.Forms.TextBox();
             this.TargetAddressBox = new System.Windows.Forms.TextBox();
@@ -56,19 +54,21 @@
             this.CurAdapterLabel = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.AdapterBox = new System.Windows.Forms.ListBox();
+            this.HttpsSetsBox = new System.Windows.Forms.GroupBox();
+            this.HttpSetsCheckBox = new System.Windows.Forms.CheckBox();
             this.AttackParamsBox.SuspendLayout();
             this.RestPoolsSetBox.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.TargetPortNum)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.portBox)).BeginInit();
             this.groupBox2.SuspendLayout();
             this.masterPointBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.MasterPortBox)).BeginInit();
             this.adapterGBox.SuspendLayout();
+            this.HttpsSetsBox.SuspendLayout();
             this.SuspendLayout();
             // 
             // SetParamnBtn
             // 
-            this.SetParamnBtn.Location = new System.Drawing.Point(608, 426);
+            this.SetParamnBtn.Location = new System.Drawing.Point(661, 467);
             this.SetParamnBtn.Name = "SetParamnBtn";
             this.SetParamnBtn.Size = new System.Drawing.Size(145, 23);
             this.SetParamnBtn.TabIndex = 0;
@@ -78,7 +78,7 @@
             // 
             // CancelBtn
             // 
-            this.CancelBtn.Location = new System.Drawing.Point(510, 426);
+            this.CancelBtn.Location = new System.Drawing.Point(580, 467);
             this.CancelBtn.Name = "CancelBtn";
             this.CancelBtn.Size = new System.Drawing.Size(75, 23);
             this.CancelBtn.TabIndex = 1;
@@ -89,7 +89,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(15, 28);
+            this.label1.Location = new System.Drawing.Point(73, 31);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(65, 13);
             this.label1.TabIndex = 2;
@@ -98,17 +98,15 @@
             // 
             // AttackParamsBox
             // 
+            this.AttackParamsBox.Controls.Add(this.HttpSetsCheckBox);
+            this.AttackParamsBox.Controls.Add(this.HttpsSetsBox);
             this.AttackParamsBox.Controls.Add(this.RestPoolsSetBox);
             this.AttackParamsBox.Controls.Add(this.FloodEnablingCheckBox);
-            this.AttackParamsBox.Controls.Add(this.TargetPortNum);
-            this.AttackParamsBox.Controls.Add(this.label5);
-            this.AttackParamsBox.Controls.Add(this.label2);
-            this.AttackParamsBox.Controls.Add(this.HttpContentBox);
             this.AttackParamsBox.Controls.Add(this.TargetAddressBox);
             this.AttackParamsBox.Controls.Add(this.label1);
             this.AttackParamsBox.Location = new System.Drawing.Point(3, 4);
             this.AttackParamsBox.Name = "AttackParamsBox";
-            this.AttackParamsBox.Size = new System.Drawing.Size(327, 416);
+            this.AttackParamsBox.Size = new System.Drawing.Size(327, 463);
             this.AttackParamsBox.TabIndex = 3;
             this.AttackParamsBox.TabStop = false;
             this.AttackParamsBox.Text = "Параметры атаки (только для режима мастера)";
@@ -117,7 +115,7 @@
             // 
             this.RestPoolsSetBox.Controls.Add(this.RestStartBox);
             this.RestPoolsSetBox.Controls.Add(this.RestEndBox);
-            this.RestPoolsSetBox.Location = new System.Drawing.Point(18, 334);
+            this.RestPoolsSetBox.Location = new System.Drawing.Point(18, 380);
             this.RestPoolsSetBox.Name = "RestPoolsSetBox";
             this.RestPoolsSetBox.Size = new System.Drawing.Size(276, 76);
             this.RestPoolsSetBox.TabIndex = 13;
@@ -143,7 +141,7 @@
             // FloodEnablingCheckBox
             // 
             this.FloodEnablingCheckBox.AutoSize = true;
-            this.FloodEnablingCheckBox.Location = new System.Drawing.Point(116, 302);
+            this.FloodEnablingCheckBox.Location = new System.Drawing.Point(116, 357);
             this.FloodEnablingCheckBox.Name = "FloodEnablingCheckBox";
             this.FloodEnablingCheckBox.Size = new System.Drawing.Size(77, 17);
             this.FloodEnablingCheckBox.TabIndex = 12;
@@ -151,37 +149,10 @@
             this.FloodEnablingCheckBox.UseVisualStyleBackColor = true;
             this.FloodEnablingCheckBox.CheckedChanged += new System.EventHandler(this.FloodEnablingCheckBox_CheckedChanged);
             // 
-            // TargetPortNum
-            // 
-            this.TargetPortNum.Location = new System.Drawing.Point(269, 26);
-            this.TargetPortNum.Maximum = new decimal(new int[] {
-            65536,
-            0,
-            0,
-            0});
-            this.TargetPortNum.Name = "TargetPortNum";
-            this.TargetPortNum.Size = new System.Drawing.Size(49, 20);
-            this.TargetPortNum.TabIndex = 11;
-            this.TargetPortNum.Value = new decimal(new int[] {
-            80,
-            0,
-            0,
-            0});
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(227, 28);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(32, 13);
-            this.label5.TabIndex = 10;
-            this.label5.Text = "Порт";
-            this.label5.TextAlign = System.Drawing.ContentAlignment.TopRight;
-            // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(15, 63);
+            this.label2.Location = new System.Drawing.Point(9, 21);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(114, 13);
             this.label2.TabIndex = 9;
@@ -190,7 +161,7 @@
             // 
             // HttpContentBox
             // 
-            this.HttpContentBox.Location = new System.Drawing.Point(18, 79);
+            this.HttpContentBox.Location = new System.Drawing.Point(12, 37);
             this.HttpContentBox.Multiline = true;
             this.HttpContentBox.Name = "HttpContentBox";
             this.HttpContentBox.Size = new System.Drawing.Size(276, 207);
@@ -199,7 +170,7 @@
             // 
             // TargetAddressBox
             // 
-            this.TargetAddressBox.Location = new System.Drawing.Point(93, 25);
+            this.TargetAddressBox.Location = new System.Drawing.Point(151, 28);
             this.TargetAddressBox.Name = "TargetAddressBox";
             this.TargetAddressBox.Size = new System.Drawing.Size(100, 20);
             this.TargetAddressBox.TabIndex = 4;
@@ -208,7 +179,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(60, 31);
+            this.label3.Location = new System.Drawing.Point(101, 25);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(189, 13);
             this.label3.TabIndex = 4;
@@ -217,7 +188,7 @@
             // 
             // portBox
             // 
-            this.portBox.Location = new System.Drawing.Point(255, 29);
+            this.portBox.Location = new System.Drawing.Point(296, 23);
             this.portBox.Maximum = new decimal(new int[] {
             65535,
             0,
@@ -241,7 +212,7 @@
             this.groupBox2.Controls.Add(this.label3);
             this.groupBox2.Location = new System.Drawing.Point(336, 12);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(417, 408);
+            this.groupBox2.Size = new System.Drawing.Size(470, 408);
             this.groupBox2.TabIndex = 6;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Прочие настройки";
@@ -252,7 +223,7 @@
             this.masterPointBox.Controls.Add(this.label7);
             this.masterPointBox.Controls.Add(this.MasterIpBox);
             this.masterPointBox.Enabled = false;
-            this.masterPointBox.Location = new System.Drawing.Point(132, 71);
+            this.masterPointBox.Location = new System.Drawing.Point(173, 65);
             this.masterPointBox.Name = "masterPointBox";
             this.masterPointBox.Size = new System.Drawing.Size(270, 43);
             this.masterPointBox.TabIndex = 10;
@@ -296,7 +267,7 @@
             this.RoleCheckBox.AutoSize = true;
             this.RoleCheckBox.Checked = true;
             this.RoleCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.RoleCheckBox.Location = new System.Drawing.Point(12, 89);
+            this.RoleCheckBox.Location = new System.Drawing.Point(53, 83);
             this.RoleCheckBox.Name = "RoleCheckBox";
             this.RoleCheckBox.Size = new System.Drawing.Size(98, 17);
             this.RoleCheckBox.TabIndex = 7;
@@ -314,7 +285,7 @@
             this.adapterGBox.Controls.Add(this.AdapterBox);
             this.adapterGBox.Location = new System.Drawing.Point(6, 131);
             this.adapterGBox.Name = "adapterGBox";
-            this.adapterGBox.Size = new System.Drawing.Size(405, 271);
+            this.adapterGBox.Size = new System.Drawing.Size(458, 271);
             this.adapterGBox.TabIndex = 6;
             this.adapterGBox.TabStop = false;
             this.adapterGBox.Text = "Сетевой адаптер";
@@ -368,15 +339,39 @@
             this.AdapterBox.ItemHeight = 16;
             this.AdapterBox.Location = new System.Drawing.Point(6, 48);
             this.AdapterBox.Name = "AdapterBox";
-            this.AdapterBox.Size = new System.Drawing.Size(393, 148);
+            this.AdapterBox.Size = new System.Drawing.Size(446, 148);
             this.AdapterBox.TabIndex = 0;
             this.AdapterBox.SelectedIndexChanged += new System.EventHandler(this.AdapterBox_SelectedIndexChanged);
+            // 
+            // HttpsSetsBox
+            // 
+            this.HttpsSetsBox.Controls.Add(this.HttpContentBox);
+            this.HttpsSetsBox.Controls.Add(this.label2);
+            this.HttpsSetsBox.Location = new System.Drawing.Point(6, 86);
+            this.HttpsSetsBox.Name = "HttpsSetsBox";
+            this.HttpsSetsBox.Size = new System.Drawing.Size(315, 249);
+            this.HttpsSetsBox.TabIndex = 11;
+            this.HttpsSetsBox.TabStop = false;
+            this.HttpsSetsBox.Text = "Параметры HTTP";
+            // 
+            // HttpSetsCheckBox
+            // 
+            this.HttpSetsCheckBox.AutoSize = true;
+            this.HttpSetsCheckBox.Checked = true;
+            this.HttpSetsCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.HttpSetsCheckBox.Location = new System.Drawing.Point(116, 63);
+            this.HttpSetsCheckBox.Name = "HttpSetsCheckBox";
+            this.HttpSetsCheckBox.Size = new System.Drawing.Size(83, 17);
+            this.HttpSetsCheckBox.TabIndex = 14;
+            this.HttpSetsCheckBox.Text = "HTTP флуд";
+            this.HttpSetsCheckBox.UseVisualStyleBackColor = true;
+            this.HttpSetsCheckBox.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
             // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(765, 454);
+            this.ClientSize = new System.Drawing.Size(818, 502);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.AttackParamsBox);
             this.Controls.Add(this.CancelBtn);
@@ -390,7 +385,6 @@
             this.AttackParamsBox.PerformLayout();
             this.RestPoolsSetBox.ResumeLayout(false);
             this.RestPoolsSetBox.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.TargetPortNum)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.portBox)).EndInit();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
@@ -399,6 +393,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.MasterPortBox)).EndInit();
             this.adapterGBox.ResumeLayout(false);
             this.adapterGBox.PerformLayout();
+            this.HttpsSetsBox.ResumeLayout(false);
+            this.HttpsSetsBox.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -417,8 +413,6 @@
         private System.Windows.Forms.TextBox RestEndBox;
         private System.Windows.Forms.TextBox RestStartBox;
         private System.Windows.Forms.TextBox TargetAddressBox;
-        private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.NumericUpDown TargetPortNum;
         private System.Windows.Forms.CheckBox FloodEnablingCheckBox;
         private System.Windows.Forms.GroupBox RestPoolsSetBox;
         private System.Windows.Forms.GroupBox adapterGBox;
@@ -433,5 +427,7 @@
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.TextBox MasterIpBox;
         private System.Windows.Forms.NumericUpDown MasterPortBox;
+        private System.Windows.Forms.GroupBox HttpsSetsBox;
+        private System.Windows.Forms.CheckBox HttpSetsCheckBox;
     }
 }

