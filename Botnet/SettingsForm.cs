@@ -14,7 +14,7 @@ namespace Botnet
 {
     public partial class SettingsForm : Form
     {
-        private NetworkInterface[] Adapters;
+        private List<NetworkInterface> Adapters;
         private NetworkInterface curAdapter;
         public delegate void SetSettingsCallBack(AttackParams Params, NetworkInterface Adapter, int port, IPEndPoint MasterAddr);
         SetSettingsCallBack SetSettings;
@@ -22,6 +22,7 @@ namespace Botnet
         public SettingsForm(AttackParams Params, NetworkInterface CurAdapter, int curport, SetSettingsCallBack funct, bool mode, IPEndPoint OldMaster)
         {
             InitializeComponent();
+            Adapters = new List<NetworkInterface>();
             SetSettings = funct;
             curAdapter = CurAdapter;
             CurAdapterLabel.Text = CurAdapter.Name + " - Status: " + CurAdapter.OperationalStatus + " Type:" + CurAdapter.NetworkInterfaceType;
@@ -148,9 +149,9 @@ namespace Botnet
         }
         private void fillAdapterList()
         {
-            Adapters = NetworkInterface.GetAllNetworkInterfaces();  
+            Adapters.AddRange(NetworkInterface.GetAllNetworkInterfaces());  
             //choose only valid adapters
-            for (int i = 0; i < Adapters.Length; ++i)
+            for (int i = 0; i < Adapters.Count; ++i)
             {
                 if (Adapters[i].OperationalStatus == OperationalStatus.Up && Adapters[i].NetworkInterfaceType != NetworkInterfaceType.Loopback)
                 {
@@ -159,6 +160,10 @@ namespace Botnet
                     {
                         AdapterBox.SelectedIndex = i;
                     } 
+                }
+                else
+                {
+                    Adapters.RemoveAt(i);
                 }
             }
             if(AdapterBox.SelectedIndex == -1 && AdapterBox.Items.Count != 0)
