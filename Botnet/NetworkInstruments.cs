@@ -26,15 +26,6 @@ namespace Botnet
             throw new Exception(); //Internetworkipnotfound
 
         }
-        public static PhysicalAddress GetMacAddress()  //of interface with specified ip
-        {
-            var myInterfaceAddress = NetworkInterface.GetAllNetworkInterfaces()
-            .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-            .OrderByDescending(n => n.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
-            .Select(n => n.GetPhysicalAddress())
-            .FirstOrDefault();
-            return myInterfaceAddress;
-        }
         public static IPAddress getAdapterIPAddress(NetworkInterface Adapter)
         {
             UnicastIPAddressInformationCollection AddressList = Adapter.GetIPProperties().UnicastAddresses;
@@ -53,11 +44,11 @@ namespace Botnet
             .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
             .OrderByDescending(n => n.NetworkInterfaceType == NetworkInterfaceType.Ethernet).First();
         }
-        public static PhysicalAddress ResolveMac(LibPcapLiveDevice device, IPAddress Instance)
+        public static PhysicalAddress ResolveMac(NetworkInterface device, IPAddress Instance)
         {
-            ARP Resolver = new ARP(device);
-            Resolver.Timeout = new TimeSpan(0, 0, 3);
-            return Resolver.Resolve(Instance, getLocaIP(), GetMacAddress());
+            ARP Resolver = new ARP((LibPcapLiveDevice)NetworkInstruments.getActiveDevice(device.GetPhysicalAddress()));
+            Resolver.Timeout = new TimeSpan(0, 0, 4);
+            return Resolver.Resolve(Instance, getAdapterIPAddress(device), device.GetPhysicalAddress());
         }
         public static PhysicalAddress GetRandomMac(ref Random Randomizer)
         {

