@@ -211,7 +211,7 @@ namespace Botnet
         }
         private void ErrorHandler(string message)
         {
-            UpdateData("Ошибка " + message);
+            UpdateData("Error " + message);
             BananaGuy.setState((int)MascotController.states.pause);
         }
         private void StatisticRespond(UInt32 http, UInt32 udp, UInt32 totalhttp, UInt32 totaludp)
