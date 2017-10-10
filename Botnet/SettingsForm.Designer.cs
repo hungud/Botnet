@@ -72,7 +72,7 @@
             this.SetParamnBtn.Name = "SetParamnBtn";
             this.SetParamnBtn.Size = new System.Drawing.Size(145, 23);
             this.SetParamnBtn.TabIndex = 0;
-            this.SetParamnBtn.Text = "Применить параметры";
+            this.SetParamnBtn.Text = "Apply Settings";
             this.SetParamnBtn.UseVisualStyleBackColor = true;
             this.SetParamnBtn.Click += new System.EventHandler(this.SetParamnBtn_Click);
             // 
@@ -82,7 +82,7 @@
             this.CancelBtn.Name = "CancelBtn";
             this.CancelBtn.Size = new System.Drawing.Size(75, 23);
             this.CancelBtn.TabIndex = 1;
-            this.CancelBtn.Text = "Отмена";
+            this.CancelBtn.Text = "Cancel";
             this.CancelBtn.UseVisualStyleBackColor = true;
             this.CancelBtn.Click += new System.EventHandler(this.CancelBtn_Click);
             // 
@@ -93,7 +93,7 @@
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(65, 13);
             this.label1.TabIndex = 2;
-            this.label1.Text = "Адрес цели";
+            this.label1.Text = "Target address";
             this.label1.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
             // AttackParamsBox
@@ -109,7 +109,7 @@
             this.AttackParamsBox.Size = new System.Drawing.Size(327, 463);
             this.AttackParamsBox.TabIndex = 3;
             this.AttackParamsBox.TabStop = false;
-            this.AttackParamsBox.Text = "Параметры атаки (только для режима мастера)";
+            this.AttackParamsBox.Text = "Attack parameters (Wizard mode only)";
             // 
             // RestPoolsSetBox
             // 
@@ -120,7 +120,7 @@
             this.RestPoolsSetBox.Size = new System.Drawing.Size(276, 76);
             this.RestPoolsSetBox.TabIndex = 13;
             this.RestPoolsSetBox.TabStop = false;
-            this.RestPoolsSetBox.Text = "Диапазон запрещенных адресов";
+            this.RestPoolsSetBox.Text = "Range of denied addresses";
             // 
             // RestStartBox
             // 
@@ -145,7 +145,7 @@
             this.FloodEnablingCheckBox.Name = "FloodEnablingCheckBox";
             this.FloodEnablingCheckBox.Size = new System.Drawing.Size(77, 17);
             this.FloodEnablingCheckBox.TabIndex = 12;
-            this.FloodEnablingCheckBox.Text = "UDP флуд";
+            this.FloodEnablingCheckBox.Text = "UDP flood";
             this.FloodEnablingCheckBox.UseVisualStyleBackColor = true;
             this.FloodEnablingCheckBox.CheckedChanged += new System.EventHandler(this.FloodEnablingCheckBox_CheckedChanged);
             // 
@@ -156,7 +156,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(114, 13);
             this.label2.TabIndex = 9;
-            this.label2.Text = "Текст HTTP запроса";
+            this.label2.Text = "HTTP request text";
             this.label2.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
             // HttpContentBox
@@ -183,7 +183,7 @@
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(189, 13);
             this.label3.TabIndex = 4;
-            this.label3.Text = "Предпочитаемый порт приложения:";
+            this.label3.Text = "Preferred application port:";
             this.label3.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
             // portBox
@@ -215,7 +215,7 @@
             this.groupBox2.Size = new System.Drawing.Size(470, 408);
             this.groupBox2.TabIndex = 6;
             this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "Прочие настройки";
+            this.groupBox2.Text = "Other settings";
             // 
             // masterPointBox
             // 
@@ -253,7 +253,7 @@
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(85, 13);
             this.label7.TabIndex = 9;
-            this.label7.Text = "Адрес Мастера";
+            this.label7.Text = "Address of the Master";
             // 
             // MasterIpBox
             // 
@@ -271,7 +271,7 @@
             this.RoleCheckBox.Name = "RoleCheckBox";
             this.RoleCheckBox.Size = new System.Drawing.Size(98, 17);
             this.RoleCheckBox.TabIndex = 7;
-            this.RoleCheckBox.Text = "Роль Мастера";
+            this.RoleCheckBox.Text = "Role of the Master";
             this.RoleCheckBox.UseVisualStyleBackColor = true;
             this.RoleCheckBox.CheckedChanged += new System.EventHandler(this.RoleCheckBox_CheckedChanged);
             // 
@@ -288,7 +288,7 @@
             this.adapterGBox.Size = new System.Drawing.Size(458, 271);
             this.adapterGBox.TabIndex = 6;
             this.adapterGBox.TabStop = false;
-            this.adapterGBox.Text = "Сетевой адаптер";
+            this.adapterGBox.Text = "AC adapter";
             // 
             // MacLab
             // 
@@ -313,7 +313,7 @@
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(116, 13);
             this.label6.TabIndex = 3;
-            this.label6.Text = "Выбранный  адаптер:";
+            this.label6.Text = "Selected adapter:";
             // 
             // CurAdapterLabel
             // 
@@ -330,7 +330,7 @@
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(99, 13);
             this.label4.TabIndex = 1;
-            this.label4.Text = "Текущий адаптер:";
+            this.label4.Text = "Current adapter:";
             // 
             // AdapterBox
             // 
@@ -352,7 +352,7 @@
             this.HttpsSetsBox.Size = new System.Drawing.Size(315, 249);
             this.HttpsSetsBox.TabIndex = 11;
             this.HttpsSetsBox.TabStop = false;
-            this.HttpsSetsBox.Text = "Параметры HTTP";
+            this.HttpsSetsBox.Text = "Options HTTP";
             // 
             // HttpSetsCheckBox
             // 
@@ -363,7 +363,7 @@
             this.HttpSetsCheckBox.Name = "HttpSetsCheckBox";
             this.HttpSetsCheckBox.Size = new System.Drawing.Size(83, 17);
             this.HttpSetsCheckBox.TabIndex = 14;
-            this.HttpSetsCheckBox.Text = "HTTP флуд";
+            this.HttpSetsCheckBox.Text = "HTTP flood";
             this.HttpSetsCheckBox.UseVisualStyleBackColor = true;
             this.HttpSetsCheckBox.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
             // 

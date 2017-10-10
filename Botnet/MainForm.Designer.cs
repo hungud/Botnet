@@ -86,7 +86,7 @@
             this.StartBtn.Name = "StartBtn";
             this.StartBtn.Size = new System.Drawing.Size(90, 66);
             this.StartBtn.TabIndex = 1;
-            this.StartBtn.Text = "Старт";
+            this.StartBtn.Text = "Start";
             this.StartBtn.UseVisualStyleBackColor = false;
             this.StartBtn.Click += new System.EventHandler(this.StartBtn_Click);
             // 
@@ -96,7 +96,7 @@
             this.StopBtn.Name = "StopBtn";
             this.StopBtn.Size = new System.Drawing.Size(86, 64);
             this.StopBtn.TabIndex = 2;
-            this.StopBtn.Text = "Стоп";
+            this.StopBtn.Text = "Stop";
             this.StopBtn.UseVisualStyleBackColor = true;
             this.StopBtn.Click += new System.EventHandler(this.StopBtn_Click);
             // 
@@ -106,7 +106,7 @@
             this.ParamsBtn.Name = "ParamsBtn";
             this.ParamsBtn.Size = new System.Drawing.Size(90, 64);
             this.ParamsBtn.TabIndex = 4;
-            this.ParamsBtn.Text = "Параметры атаки";
+            this.ParamsBtn.Text = "Attack Options";
             this.ParamsBtn.UseVisualStyleBackColor = true;
             this.ParamsBtn.Click += new System.EventHandler(this.ParamsBtn_Click);
             // 
@@ -156,7 +156,7 @@
             this.ClearLogBtn.Name = "ClearLogBtn";
             this.ClearLogBtn.Size = new System.Drawing.Size(86, 23);
             this.ClearLogBtn.TabIndex = 9;
-            this.ClearLogBtn.Text = "Очистить лог";
+            this.ClearLogBtn.Text = "Clear Log";
             this.ClearLogBtn.UseVisualStyleBackColor = true;
             this.ClearLogBtn.Click += new System.EventHandler(this.ClearLogBtn_Click);
             // 
@@ -167,7 +167,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(144, 13);
             this.label2.TabIndex = 10;
-            this.label2.Text = "Подключенные устройства";
+            this.label2.Text = "Connected devices";
             // 
             // LogBox
             // 
@@ -188,7 +188,7 @@
             this.refreshAliesBtn.Name = "refreshAliesBtn";
             this.refreshAliesBtn.Size = new System.Drawing.Size(78, 19);
             this.refreshAliesBtn.TabIndex = 13;
-            this.refreshAliesBtn.Text = "Обновить";
+            this.refreshAliesBtn.Text = "Update";
             this.refreshAliesBtn.UseVisualStyleBackColor = true;
             this.refreshAliesBtn.Click += new System.EventHandler(this.refreshAliesBtn_Click);
             // 
@@ -226,7 +226,7 @@
             this.MasterMode.Padding = new System.Windows.Forms.Padding(3);
             this.MasterMode.Size = new System.Drawing.Size(229, 444);
             this.MasterMode.TabIndex = 0;
-            this.MasterMode.Text = "Режим Мастера";
+            this.MasterMode.Text = "Wizard Mode";
             this.MasterMode.UseVisualStyleBackColor = true;
             // 
             // MIpEndPointlab
@@ -257,7 +257,7 @@
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(97, 17);
             this.label8.TabIndex = 15;
-            this.label8.Text = "Роль: Мастер";
+            this.label8.Text = "Role: Master";
             // 
             // groupBox1
             // 
@@ -276,7 +276,7 @@
             this.groupBox1.Size = new System.Drawing.Size(223, 160);
             this.groupBox1.TabIndex = 14;
             this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Статистика";
+            this.groupBox1.Text = "Statistics";
             // 
             // MUdpTotalLab
             // 
@@ -339,7 +339,7 @@
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(103, 13);
             this.label3.TabIndex = 3;
-            this.label3.Text = "Отправлено всего:";
+            this.label3.Text = "Sent all:";
             // 
             // label5
             // 
@@ -366,7 +366,7 @@
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(171, 13);
             this.label1.TabIndex = 0;
-            this.label1.Text = "Отправлено с текущей машины:";
+            this.label1.Text = "Sent from current machine:";
             // 
             // HostMode
             // 
@@ -381,7 +381,7 @@
             this.HostMode.Padding = new System.Windows.Forms.Padding(3);
             this.HostMode.Size = new System.Drawing.Size(229, 444);
             this.HostMode.TabIndex = 1;
-            this.HostMode.Text = "Режим хоста";
+            this.HostMode.Text = "Host mode";
             this.HostMode.UseVisualStyleBackColor = true;
             // 
             // groupBox2
@@ -396,7 +396,7 @@
             this.groupBox2.Size = new System.Drawing.Size(223, 160);
             this.groupBox2.TabIndex = 23;
             this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "Статистика";
+            this.groupBox2.Text = "Statistics";
             // 
             // HUdpTotalLab
             // 
@@ -441,7 +441,7 @@
             this.label22.Name = "label22";
             this.label22.Size = new System.Drawing.Size(171, 13);
             this.label22.TabIndex = 0;
-            this.label22.Text = "Отправлено с текущей машины:";
+            this.label22.Text = "Sent from current machine:";
             // 
             // HMasterLab
             // 
@@ -461,7 +461,7 @@
             this.label10.Name = "label10";
             this.label10.Size = new System.Drawing.Size(61, 17);
             this.label10.TabIndex = 21;
-            this.label10.Text = "Мастер:";
+            this.label10.Text = "Master:";
             // 
             // HIpEndPointLab
             // 
@@ -491,7 +491,7 @@
             this.label12.Name = "label12";
             this.label12.Size = new System.Drawing.Size(79, 17);
             this.label12.TabIndex = 18;
-            this.label12.Text = "Роль: Хост";
+            this.label12.Text = "Role: Host";
             // 
             // ConnectBtn
             // 
@@ -499,7 +499,7 @@
             this.ConnectBtn.Name = "ConnectBtn";
             this.ConnectBtn.Size = new System.Drawing.Size(90, 64);
             this.ConnectBtn.TabIndex = 16;
-            this.ConnectBtn.Text = "Подключить";
+            this.ConnectBtn.Text = "Connect";
             this.ConnectBtn.UseVisualStyleBackColor = true;
             this.ConnectBtn.Click += new System.EventHandler(this.button1_Click);
             // 

